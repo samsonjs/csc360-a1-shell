@@ -2,6 +2,7 @@
 
 require 'English'
 require 'open3'
+require 'readline'
 
 require './builtins'
 require './colours'
@@ -27,11 +28,11 @@ class Shell
       print_logs
       exit exec_command(options[:command])
     elsif $stdin.isatty
+      add_to_history = true
       loop do
-        # TODO: use readline instead
         print_logs
-        print prompt(Dir.pwd)
-        process_command(gets&.chomp)
+        cmd = Readline.readline(prompt(Dir.pwd), add_to_history)
+        process_command(cmd)
       end
     end
   end
@@ -105,7 +106,6 @@ class Shell
       status = exec_command(cmd)
       print "#{RED}-#{status}-#{CLEAR} " unless status.zero?
     end
-    # TODO: add to readline history
   end
 
   def exec_command(cmd)
