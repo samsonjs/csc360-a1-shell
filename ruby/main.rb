@@ -88,18 +88,20 @@ class Shell
   end
 
   def process_command(cmd)
+    logger.verbose "Processing command: #{cmd.inspect}"
+    exit 0 if cmd.nil? # EOF, ctrl-d
+    return if cmd.empty? # no input, no-op
+
     # TODO: proper word splitting, pass arrays to built-ins
-    args = cmd&.split
-    argv0 = args&.first
-    case argv0
-    when nil, 'exit'
-      exit 0
-    when ''
-      # noop
-    when @builtins.builtin?(argv0)
+    args = cmd.split
+    argv0 = args.first
+    logger.verbose "\"Words\": #{args.inspect}"
+    if @builtins.builtin?(argv0)
+      logger.verbose "Executing builtin #{argv0}"
       args.shift
       @builtins.exec(argv0, args)
     else
+      logger.verbose "Shelling out for #{argv0}"
       status = exec_command(cmd)
       print "#{RED}-#{status}-#{CLEAR} " unless status.zero?
     end
