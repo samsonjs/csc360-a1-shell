@@ -1,13 +1,13 @@
 #!/bin/sh
 
-if [[ $(uname -s) = Darwin ]]; then
+if [ $(uname -s) = Darwin ]; then
     if command -v brew >/dev/null 2>/dev/null; then
         echo $(brew --prefix)/opt
-    elif [[ -x /opt/homebrew/bin/brew ]]; then
+    elif [ -x /opt/homebrew/bin/brew ]; then
         echo $(/opt/homebrew/bin/brew -- prefix)/opt
-    elif [[ -x $HOME/homebrew/bin/brew ]]; then
+    elif [ -x $HOME/homebrew/bin/brew ]; then
         echo $($HOME/homebrew/bin/brew --prefix)/opt
-    elif [[ -x /usr/local/bin/brew ]]; then
+    elif [ -x /usr/local/bin/brew ]; then
         echo $(/usr/local/bin/brew --prefix)/opt
     else
         echo /usr/local
