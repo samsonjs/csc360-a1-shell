@@ -15,6 +15,7 @@ class Shell
     @logger = ShellLogger.new
     @options = parse_options(args)
     @jobs_by_pid = {}
+    @builtins = Builtins.new(@logger)
     logger.verbose "options: #{options.inspect}"
   end
 
@@ -95,9 +96,9 @@ class Shell
       exit 0
     when ''
       # noop
-    when builtin?(argv0)
+    when @builtins.builtin?(argv0)
       args.shift
-      exec_builtin(argv0, args)
+      @builtins.exec(argv0, args)
     else
       status = exec_command(cmd)
       print "#{RED}-#{status}-#{CLEAR} " unless status.zero?

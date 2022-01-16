@@ -5,10 +5,6 @@ class ShellLogger
 
   attr_reader :logs
 
-  def self.instance
-    @instance ||= new
-  end
-
   def initialize
     clear
   end
