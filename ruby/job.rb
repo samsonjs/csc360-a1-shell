@@ -1,3 +1,3 @@
 class Shell
-  Job = Struct.new(:id, :cmd)
+  Job = Struct.new(:id, :pid, :cmd, :args)
 end
