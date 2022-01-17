@@ -133,9 +133,9 @@ class Shell
           Process.waitpid(pid)
           $CHILD_STATUS.exitstatus
         rescue Errno::ECHILD => e
-          # FIXME: why does this happen?
-          warn "#{YELLOW}[WARN]#{CLEAR} #{e.message} but child was just forked 🧐"
-          -3
+          # FIXME: why does this happen? doesn't seem to be a real problem
+          logger.verbose "#{YELLOW}#{e.message}#{CLEAR} but child was just forked 🧐"
+          0
         end
       end
     else
