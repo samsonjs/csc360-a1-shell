@@ -1,3 +1,5 @@
+require './colours'
+
 # Queues up messages to be printed out when readline is waiting for input, to prevent
 # mixing shell output with command output.
 class ShellLogger
@@ -5,21 +7,29 @@ class ShellLogger
 
   attr_reader :logs
 
+  def self.instance
+    @instance ||= new
+  end
+
   def initialize
     clear
   end
 
   def log(message)
-    @logs << Log.new(:info, message)
+    @logs << Log.new(:info, "#{WHITE}[INFO]#{CLEAR} #{message}")
   end
   alias info log
 
   def warn(message)
-    @logs << Log.new(:warning, message)
+    @logs << Log.new(:warning, "#{YELLOW}[WARN]#{CLEAR} #{message}")
+  end
+
+  def error(message)
+    @logs << Log.new(:error, "#{RED}[ERROR]#{CLEAR} #{message}")
   end
 
   def verbose(message)
-    @logs << Log.new(:verbose, message)
+    @logs << Log.new(:verbose, "[VERBOSE] #{message}")
   end
 
   def clear

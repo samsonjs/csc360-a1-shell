@@ -2,7 +2,7 @@ class Shell
   class Builtins
     attr_reader :logger
 
-    def initialize(logger)
+    def initialize(logger = ShellLogger.instance)
       @logger = logger
     end
 

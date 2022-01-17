@@ -3,6 +3,7 @@
 require 'English'
 require 'open3'
 require 'readline'
+require 'shellwords'
 
 require './builtins'
 require './colours'
@@ -12,12 +13,12 @@ require './job'
 class Shell
   attr_reader :logger, :options
 
-  def initialize(args)
-    @logger = ShellLogger.new
-    @options = parse_options(args)
+  def initialize(args = ARGV)
+    @builtins = Builtins.new
     @jobs_by_pid = {}
-    @builtins = Builtins.new(@logger)
-    logger.verbose "options: #{options.inspect}"
+    @logger = ShellLogger.instance
+    @options = parse_options(args)
+    logger.verbose "Options: #{options.inspect}"
   end
 
   def main
@@ -26,13 +27,13 @@ class Shell
     if options[:command]
       logger.verbose "Executing command: #{options[:command]}"
       print_logs
-      exit exec_command(options[:command])
+      exit process_command(options[:command])
     elsif $stdin.isatty
       add_to_history = true
       loop do
         print_logs
-        cmd = Readline.readline(prompt(Dir.pwd), add_to_history)
-        process_command(cmd)
+        line = Readline.readline(prompt(Dir.pwd), add_to_history)
+        process_command(line)
       end
     end
   end
@@ -78,39 +79,35 @@ class Shell
       message = "#{log.message}#{CLEAR}"
       case log.level
       when :verbose
-        puts message if options[:verbose]
-      when :warning
-        warn message
+        warn message if options[:verbose]
       else
-        puts message
+        warn message
       end
     end
     logger.clear
   end
 
-  def process_command(cmd)
-    logger.verbose "Processing command: #{cmd.inspect}"
-    exit 0 if cmd.nil? # EOF, ctrl-d
-    return if cmd.empty? # no input, no-op
+  def process_command(line)
+    logger.verbose "Processing command: #{line.inspect}"
+    exit 0 if line.nil? # EOF, ctrl-d
+    return if line.empty? # no input, no-op
 
-    # TODO: proper word splitting, pass arrays to built-ins
-    args = cmd.split
-    argv0 = args.first
-    logger.verbose "\"Words\": #{args.inspect}"
-    if @builtins.builtin?(argv0)
-      logger.verbose "Executing builtin #{argv0}"
-      args.shift
-      @builtins.exec(argv0, args)
+    args = Shellwords.split(line)
+    cmd = args.shift
+    logger.verbose "Words: #{cmd} #{args.inspect}"
+    if @builtins.builtin?(cmd)
+      logger.verbose "Executing builtin #{cmd}"
+      @builtins.exec(cmd, args)
     else
-      logger.verbose "Shelling out for #{argv0}"
-      status = exec_command(cmd)
+      logger.verbose "Shelling out for #{cmd}"
+      status = exec_command(cmd, args)
       print "#{RED}-#{status}-#{CLEAR} " unless status.zero?
     end
   end
 
-  def exec_command(cmd)
+  def exec_command(cmd, args)
     # TODO: background execution using fork + exec, streaming output
-    out, err, status = Open3.capture3(cmd)
+    out, err, status = Open3.capture3(cmd + ' ' + args.join(' '))
     puts out.chomp unless out.empty?
     warn err.chomp unless err.empty?
     status.exitstatus
