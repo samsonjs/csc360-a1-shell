@@ -3,7 +3,7 @@
 require 'English'
 require 'open3'
 require 'readline'
-require 'shellwords'
+require 'wordexp'
 
 require './builtins'
 require './colours'
@@ -92,9 +92,9 @@ class Shell
     exit 0 if line.nil? # EOF, ctrl-d
     return if line.empty? # no input, no-op
 
-    args = Shellwords.split(line)
+    args = Wordexp.expand(line)
     cmd = args.shift
-    logger.verbose "Words: #{cmd} #{args.inspect}"
+    logger.verbose "Parsed command: #{cmd} #{args.inspect}"
     if @builtins.builtin?(cmd)
       logger.verbose "Executing builtin #{cmd}"
       @builtins.exec(cmd, args)
