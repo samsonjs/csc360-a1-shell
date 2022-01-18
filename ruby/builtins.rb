@@ -33,7 +33,7 @@ class Shell
       # only supports one variable and doesn't support quoting
       name, *value_parts = args.first.strip.split('=')
       if name.nil? || name.empty?
-        logger.warn "#{RED}[ERROR]#{CLEAR} Invalid export command"
+        logger.warn "#{red('[ERROR]')} Invalid export command"
       else
         ENV[name] = value_parts.join('=').gsub(/\$\w+/) { |m| ENV[m[1..]] || '' }
       end

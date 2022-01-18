@@ -7,13 +7,13 @@ class Shell
     RED = "\033[1;31m".freeze
     WHITE = "\033[1;37m".freeze
     CLEAR = "\033[0;m".freeze
-  end
 
-  def self.included(other)
-    Colours.constants.each do |sym|
-      next if sym == :CLEAR
-      other.define_method(sym.to_s.downcase) do |text|
-        "#{Colours.const_get(sym)}#{text}#{CLEAR}"
+    def self.included(mod)
+      Colours.constants.each do |sym|
+        next if sym == :CLEAR
+        mod.define_method(sym.to_s.downcase) do |*text|
+          "#{Colours.const_get(sym)}#{text.join}#{CLEAR}"
+        end
       end
     end
   end

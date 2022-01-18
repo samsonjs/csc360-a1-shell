@@ -41,7 +41,7 @@ class Shell
     status = 0
     loop do
       print_logs
-      print "#{RED}#{status}#{CLEAR} " unless status.zero?
+      print "#{red(status)} " unless status.zero?
       line = Readline.readline(prompt(Dir.pwd), add_to_history)
       Readline::HISTORY.pop if line.nil? || line.strip.empty?
       status = process_command(line)
@@ -50,7 +50,7 @@ class Shell
 
   # Looks like this: /path/to/somewhere%
   def prompt(pwd)
-    "#{BLUE}#{pwd}#{WHITE}% #{CLEAR}"
+    "#{blue(pwd)}#{white('%')} #{CLEAR}"
   end
 
   def parse_options(args)
@@ -64,7 +64,7 @@ class Shell
       when '-v', '--verbose'
         options[:verbose] = true
       else
-        logger.warn "#{RED}[ERROR]#{CLEAR} Unknown argument: #{arg}"
+        logger.warn "#{red('[ERROR]')} Unknown argument: #{arg}"
         exit 1
       end
     end
@@ -100,7 +100,7 @@ class Shell
       @job_control.exec_command(cmd, args)
     end
   rescue Errno => e
-    warn "#{RED}[ERROR]#{CLEAR} #{e.message}"
+    warn "#{red('[ERROR]')} #{e.message}"
     -1
   end
 end

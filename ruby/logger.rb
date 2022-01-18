@@ -19,16 +19,16 @@ class Shell
     end
 
     def log(message)
-      @logs << Log.new(:info, "#{WHITE}[INFO]#{CLEAR} #{message}")
+      @logs << Log.new(:info, "#{white('[INFO]')} #{message}")
     end
     alias info log
 
     def warn(message)
-      @logs << Log.new(:warning, "#{YELLOW}[WARN]#{CLEAR} #{message}")
+      @logs << Log.new(:warning, "#{yellow('[WARN]')} #{message}")
     end
 
     def error(message)
-      @logs << Log.new(:error, "#{RED}[ERROR]#{CLEAR} #{message}")
+      @logs << Log.new(:error, "#{red('[ERROR]')} #{message}")
     end
 
     def verbose(message)

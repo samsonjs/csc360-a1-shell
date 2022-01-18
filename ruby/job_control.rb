@@ -19,19 +19,20 @@ class Shell
         if pid.nil?
           # no-op
         elsif (job = @jobs_by_pid[pid])
-          puts "\n#{YELLOW}#{job.id}#{CLEAR}: " \
-               "#{WHITE}(pid #{pid})#{CLEAR} "  \
-               "#{GREEN}#{job.cmd}#{CLEAR} "    \
-               "#{job.args.inspect}"
+          time = Time.now.strftime('%T')
+          job_text = yellow('job ', job.id, ' exited')
+          args = job.args.inspect
+          puts "\n[#{time}] #{job_text} #{white('(pid ', pid, ')')}: #{green(job.cmd)} #{args}"
         else
-          warn "\n#{YELLOW}[WARN]#{CLEAR} No job found for child with PID #{pid}"
+          warn "\n#{yellow('[WARN]')} No job found for child with PID #{pid}"
         end
+        Readline.refresh_line
       end
     end
 
     def exec_command(cmd, args, background: false)
       unless (path = resolve_executable(cmd))
-        warn "#{RED}[ERROR]#{CLEAR} command not found: #{cmd}"
+        warn "#{red('[ERROR]')} command not found: #{cmd}"
         return -2
       end
 
@@ -48,12 +49,12 @@ class Shell
           $CHILD_STATUS.exitstatus
         rescue Errno::ECHILD => e
           # FIXME: why does this happen? doesn't seem to be a real problem
-          logger.verbose "#{YELLOW}#{e.message}#{CLEAR} but child was just forked 🧐"
+          logger.verbose "#{yellow(e.message)} but child was just forked 🧐"
           0
         end
       end
     rescue StandardError => e
-      warn "#{RED}[ERROR]#{CLEAR} #{e.message} #{e.inspect}"
+      warn "#{red('[ERROR]')} #{e.message} #{e.inspect}"
       -5
     end
 
