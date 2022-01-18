@@ -1,3 +1,9 @@
-#!/bin/sh
+#!/usr/bin/env ruby -w
 
-./main.rb "$@"
+require 'English'
+
+$LOAD_PATH << File.expand_path(__dir__)
+
+require 'shell'
+
+Shell::CLI.new.run(args: ARGV) if $PROGRAM_NAME == __FILE__

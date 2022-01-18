@@ -1,15 +1,18 @@
-require './colours'
-require './job'
+require 'English'
 
-class Shell
+require 'shell/colours'
+require 'shell/job'
+require 'shell/logger'
+
+module Shell
   class JobControl
     include Colours
 
     attr_reader :logger
 
-    def initialize(logger = Logger.instance)
+    def initialize(logger: nil)
       @jobs_by_pid = {}
-      @logger = logger
+      @logger = logger || Logger.instance
     end
 
     def trap_sigchld

@@ -1,4 +1,4 @@
-class Shell
+module Shell
   module Colours
     # These colours should be safe on dark and light backgrounds.
     BLUE = "\033[1;34m".freeze
