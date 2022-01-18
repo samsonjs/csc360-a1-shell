@@ -1,42 +1,50 @@
 #!/usr/bin/env ruby -w
 
 require 'English'
-require 'open3'
 require 'readline'
 require 'wordexp'
 
 require './builtins'
 require './colours'
+require './job_control'
 require './logger'
-require './job'
 
+# TODO: change to module after extracting all or most of the code
 class Shell
-  attr_reader :logger, :options
+  include Colours
 
-  def initialize(args = ARGV)
-    @builtins = Builtins.new(self)
-    @jobs_by_pid = {}
-    @logger = Logger.instance
+  attr_reader :builtins, :job_control, :logger, :options
+
+  def initialize(args: ARGV, builtins: nil, job_control: nil, logger: nil)
+    logger ||= Logger.instance
+    job_control ||= JobControl.new
+    builtins ||= Builtins.new(job_control)
+    @builtins = builtins
+    @job_control = job_control
+    @logger = logger
     @options = parse_options(args)
     logger.verbose "Options: #{options.inspect}"
   end
 
   def main
-    trap_sigchld
     if options[:command]
       logger.verbose "Executing command: #{options[:command]}"
       print_logs
       exit process_command(options[:command])
-    elsif $stdin.isatty
-      add_to_history = true
-      status = 0
-      loop do
-        print_logs
-        print "#{RED}#{status}#{CLEAR} " unless status.zero?
-        line = Readline.readline(prompt(Dir.pwd), add_to_history)
-        Readline::HISTORY.pop if line.nil? || line.strip.empty?
-        status = process_command(line)
-      end
+    end
+    repl if $stdin.isatty
+  end
+
+  def repl
+    @job_control.trap_sigchld
+    add_to_history = true
+    status = 0
+    loop do
+      print_logs
+      print "#{RED}#{status}#{CLEAR} " unless status.zero?
+      line = Readline.readline(prompt(Dir.pwd), add_to_history)
+      Readline::HISTORY.pop if line.nil? || line.strip.empty?
+      status = process_command(line)
     end
   end
 
@@ -61,23 +69,6 @@ class Shell
       end
     end
     options
-  end
-
-  def trap_sigchld
-    # handler for SIGCHLD when a child's state changes
-    Signal.trap('CHLD') do |_signo|
-      pid = Process.waitpid(-1, Process::WNOHANG)
-      if pid.nil?
-        # no-op
-      elsif (job = @jobs_by_pid[pid])
-        puts "\n#{YELLOW}#{job.id}#{CLEAR}: " \
-             "#{WHITE}(pid #{pid})#{CLEAR} "  \
-             "#{GREEN}#{job.cmd}#{CLEAR} "    \
-             "#{job.args.inspect}"
-      else
-        warn "\n#{YELLOW}[WARN]#{CLEAR} No job found for child with PID #{pid}"
-      end
-    end
   end
 
   def print_logs
@@ -106,70 +97,12 @@ class Shell
       @builtins.exec(cmd, args)
     else
       logger.verbose "Shelling out for #{cmd}"
-      exec_command(cmd, args)
+      @job_control.exec_command(cmd, args)
     end
   rescue Errno => e
     warn "#{RED}[ERROR]#{CLEAR} #{e.message}"
     -1
   end
-
-  def exec_command(cmd, args, background: false)
-    unless (path = resolve_executable(cmd))
-      warn "#{RED}[ERROR]#{CLEAR} command not found: #{cmd}"
-      return -2
-    end
-
-    pid = fork
-    if pid
-      # parent
-      if background
-        job = Job.new(next_job_id, pid, cmd, args)
-        @jobs_by_pid[pid] = job
-        puts "Background job #{job.id} (pid #{pid})"
-        Process.waitpid(pid, Process::WNOHANG)
-        0
-      else
-        begin
-          Process.waitpid(pid)
-          $CHILD_STATUS.exitstatus
-        rescue Errno::ECHILD => e
-          # FIXME: why does this happen? doesn't seem to be a real problem
-          logger.verbose "#{YELLOW}#{e.message}#{CLEAR} but child was just forked 🧐"
-          0
-        end
-      end
-    else
-      # child
-      exec([path, cmd], *args)
-      # if we make it here then exec failed
-      -4
-    end
-  rescue StandardError => e
-    warn "#{RED}[ERROR]#{CLEAR} #{e.message} #{e.inspect}"
-    -5
-  end
-
-  # Return absolute and relative paths directly, or searches PATH for a
-  # matching executable with the given filename and returns its path.
-  # Returns nil when no such command was found.
-  def resolve_executable(path_or_filename)
-    # process absolute and relative paths directly
-    return path_or_filename if path_or_filename['/'] && \
-                               File.executable?(path_or_filename)
-
-    filename = path_or_filename
-    ENV['PATH'].split(':').each do |dir|
-      path = File.join(dir, filename)
-      next unless File.exist?(path)
-      return path if File.executable?(path)
-      logger.warn "Found #{path} but it's not executable"
-    end
-    nil
-  end
-
-  def next_job_id
-    (@jobs_by_pid.values.map(&:id).max || 0) + 1
-  end
 end
 
-Shell.new(ARGV).main if $PROGRAM_NAME == __FILE__
+Shell.new(args: ARGV).main if $PROGRAM_NAME == __FILE__

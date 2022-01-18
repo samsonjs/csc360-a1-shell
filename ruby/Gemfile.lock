@@ -27,7 +27,7 @@ PLATFORMS
   arm64-darwin-21
 
 DEPENDENCIES
-  rubocop
+  rubocop (= 1.24.1)
   wordexp (~> 0.1)
 
 RUBY VERSION

@@ -2,8 +2,8 @@ class Shell
   class Builtins
     attr_reader :logger
 
-    def initialize(shell, logger = Logger.instance)
-      @shell = shell
+    def initialize(job_control, logger = Logger.instance)
+      @job_control = job_control
       @logger = logger
     end
 
@@ -21,7 +21,7 @@ class Shell
 
     def builtin_bg(args)
       cmd = args.shift
-      @shell.exec_command(cmd, args, background: true)
+      @job_control.exec_command(cmd, args, background: true)
     end
 
     def builtin_cd(args)
