@@ -28,6 +28,28 @@ module Shell
       job_control.exec_command(cmd, args, background: true)
     end
 
+    def builtin_bglist(_args)
+      jobs = job_control.list
+      puts unless jobs.empty?
+      jobs.each do |job|
+        puts job_control.format_job(job)
+      end
+      plural = jobs.count == 1 ? '' : 's'
+      puts "#{jobs.count} background job#{plural}"
+      0
+    end
+
+    def builtin_bgkill(args)
+      if args.count != 1
+        logger.warn 'Usage: bgkill <job>'
+        return -1
+      end
+
+      job_id = args.shift.to_i
+      job_control.kill(job_id)
+      0
+    end
+
     def builtin_cd(args)
       Dir.chdir args.first
       0

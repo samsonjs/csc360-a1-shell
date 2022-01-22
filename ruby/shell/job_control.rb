@@ -15,24 +15,6 @@ module Shell
       @logger = logger || Logger.instance
     end
 
-    def trap_sigchld
-      # handler for SIGCHLD when a child's state changes
-      Signal.trap('CHLD') do |_signo|
-        pid = Process.waitpid(-1, Process::WNOHANG)
-        if pid.nil?
-          # no-op
-        elsif (job = @jobs_by_pid[pid])
-          time = Time.now.strftime('%T')
-          job_text = yellow('job ', job.id, ' exited')
-          args = job.args.inspect
-          puts "\n[#{time}] #{job_text} #{white('(pid ', pid, ')')}: #{green(job.cmd)} #{args}"
-        else
-          warn "\n#{yellow('[WARN]')} No job found for child with PID #{pid}"
-        end
-        Readline.refresh_line
-      end
-    end
-
     def exec_command(cmd, args, background: false)
       unless (path = resolve_executable(cmd))
         warn "#{red('[ERROR]')} command not found: #{cmd}"
@@ -59,6 +41,46 @@ module Shell
     rescue StandardError => e
       warn "#{red('[ERROR]')} #{e.message} #{e.inspect}"
       -5
+    end
+
+    def kill(job_id)
+      job = @jobs_by_pid.values.detect { |j| j.id == job_id }
+      if job.nil?
+        logger.warn "No job found with ID #{job_id}"
+        return
+      end
+
+      Process.kill('TERM', job.pid)
+    rescue Errno::ESRCH
+      logger.warn "No such proccess: #{job.pid}"
+    end
+
+    def list
+      @jobs_by_pid.values.sort_by(&:id)
+    end
+
+    def format_job(job)
+      args = job.args.join(' ')
+      "#{yellow(job.id)}: #{white('(pid ', job.pid, ')')} #{green(job.cmd)} #{args}"
+    end
+
+    def trap_sigchld
+      # handler for SIGCHLD when a child's state changes
+      Signal.trap('CHLD') do |_signo|
+        pid = Process.waitpid(-1, Process::WNOHANG)
+        if pid.nil?
+          # no-op
+        elsif (job = @jobs_by_pid[pid])
+          @jobs_by_pid.delete(pid)
+          time = Time.now.strftime('%T')
+          job_text = yellow('job ', job.id, ' exited')
+          args = job.args.join(' ')
+          puts "\n[#{time}] #{job_text} #{white('(pid ', job.pid, ')')}: #{green(job.cmd)} #{args}"
+        else
+          warn "\n#{yellow('[WARN]')} No job found for child with PID #{pid}"
+        end
+        Readline.refresh_line
+      end
     end
 
     # Return absolute and relative paths directly, or searches PATH for a
