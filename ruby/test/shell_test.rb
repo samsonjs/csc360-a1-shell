@@ -3,7 +3,7 @@ require 'minitest/autorun'
 class ShellTest < Minitest::Test
   TRIVIAL_SHELL_SCRIPT = "#!/bin/sh\ntrue".freeze
 
-  A1_PATH = './a1'.freeze
+  A1_PATH = ENV.fetch('A1_PATH', './a1').freeze
 
   def setup
     FileUtils.mkdir_p('test_bin')
