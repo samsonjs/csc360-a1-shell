@@ -5,3 +5,7 @@ task default: 'test'
 Rake::TestTask.new do |task|
   task.pattern = 'test/*_test.rb'
 end
+
+task :clean do
+  FileUtils.rm_rf('test_bin')
+end
