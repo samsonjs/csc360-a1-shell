@@ -66,8 +66,13 @@ module Shell
       0
     end
 
-    def bulitin_pwd(_args)
+    def builtin_pwd(_args)
       puts Dir.pwd
+      0
+    end
+
+    def builtin_clear(_args)
+      print "\033[2J"
       0
     end
   end
