@@ -8,5 +8,5 @@
  * main.h
  * $Id: main.h 183 2006-01-27 11:24:52Z sjs $
  */
- 
-void queue_message ( char *message );
+
+void queue_message(char *message);

@@ -8,10 +8,10 @@
  * builtins.h
  * $Id: builtins.h 184 2006-01-29 08:53:30Z sjs $
  */
- 
-int		builtin_bg		( int argc, char **argv );
-int		builtin_bgkill	( int argc, char **argv );
-int		builtin_bglist	( void );
-int		builtin_cd		( int argc, char **argv );
-void	builtin_clear	( void );
-void	builtin_pwd		( void );
+
+int builtin_bg(int argc, char **argv);
+int builtin_bgkill(int argc, char **argv);
+int builtin_bglist(void);
+int builtin_cd(int argc, char **argv);
+void builtin_clear(void);
+void builtin_pwd(void);
