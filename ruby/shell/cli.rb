@@ -35,6 +35,10 @@ module Shell
         case arg
         when '-c'
           options[:command] = args.shift
+          if options[:command].nil?
+            warn 'ERROR: expected string after -c'
+            exit 1
+          end
         when '-v', '--verbose'
           options[:verbose] = true
         else
