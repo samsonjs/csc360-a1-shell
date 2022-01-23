@@ -219,7 +219,7 @@ int handle_wordexp_result(int result, char *cmd) {
 
 int process_command(char *line, options_t options) {
     wordexp_t words;
-    int result = wordexp(line, &words, WRDE_SHOWERR);
+    int result = wordexp(line, &words, WRDE_SHOWERR | WRDE_UNDEF);
     if (handle_wordexp_result(result, line) && words.we_wordc > 0) {
         if (options->verbose) {
             int i;
