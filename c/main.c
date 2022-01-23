@@ -18,6 +18,7 @@
 #include <readline/history.h>
 #include <readline/readline.h>
 #include <signal.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
@@ -37,6 +38,12 @@
 
 /* for wordexp */
 #define INVALID_CHARS "&|;<>"
+
+struct options {
+    char *command;
+    bool verbose;
+};
+typedef struct options *options_t;
 
 struct message {
     char *data;
@@ -210,7 +217,49 @@ int handle_wordexp_result(int result, char *cmd) {
     return result;
 }
 
-void repl_start(void) {
+int process_command(char *line, options_t options) {
+    wordexp_t words;
+    int result = wordexp(line, &words, WRDE_SHOWERR);
+    if (handle_wordexp_result(result, line) && words.we_wordc > 0) {
+        if (DEBUG || options->verbose) {
+            int i;
+            printf("[DEBUG] args = { ");
+            for (i = 0; i < words.we_wordc; i++)
+                printf("'%s', ", words.we_wordv[i]);
+            printf("}\n");
+        }
+        /* try the built-in commands */
+        if (cmd_matches("bg", words.we_wordv[0]))
+            builtin_bg(words.we_wordc, words.we_wordv);
+        else if (cmd_matches("bgkill", words.we_wordv[0]))
+            builtin_bgkill(words.we_wordc, words.we_wordv);
+        else if (cmd_matches("bglist", words.we_wordv[0]))
+            builtin_bglist();
+        else if (cmd_matches("cd", words.we_wordv[0]))
+            builtin_cd(words.we_wordc, words.we_wordv);
+        else if (cmd_matches("clear", words.we_wordv[0]))
+            builtin_clear();
+        else if (cmd_matches("pwd", words.we_wordv[0]))
+            builtin_pwd();
+        else if (cmd_matches("exit", words.we_wordv[0])) {
+            exit(0);
+        } else {
+            /* default to trying to execute the command line */
+            int retval = exec_command(words.we_wordv, 0);
+            if (retval < 0) {
+                wordfree(&words);
+                return retval;
+            }
+        }
+        add_history(line); /* add to the readline history */
+        wordfree(&words);
+        return 0;
+    } else {
+        return -2;
+    }
+}
+
+void repl_start(options_t options) {
     for (;;) {
         char *prompt = get_prompt();
         char *cmd = readline(prompt);
@@ -219,39 +268,7 @@ void repl_start(void) {
         if (!cmd) /* exit if we get an EOF, which returns NULL */
             break;
 
-        wordexp_t words;
-        int result = wordexp(cmd, &words, WRDE_SHOWERR);
-        if (handle_wordexp_result(result, cmd) && words.we_wordc > 0) {
-            if (DEBUG) {
-                int i;
-                printf("DEBUG: args = { ");
-                for (i = 0; i < words.we_wordc; i++)
-                    printf("'%s', ", words.we_wordv[i]);
-                printf("}\n");
-            }
-            /* try the built-in commands */
-            if (cmd_matches("bg", words.we_wordv[0]))
-                builtin_bg(words.we_wordc, words.we_wordv);
-            else if (cmd_matches("bgkill", words.we_wordv[0]))
-                builtin_bgkill(words.we_wordc, words.we_wordv);
-            else if (cmd_matches("bglist", words.we_wordv[0]))
-                builtin_bglist();
-            else if (cmd_matches("cd", words.we_wordv[0]))
-                builtin_cd(words.we_wordc, words.we_wordv);
-            else if (cmd_matches("clear", words.we_wordv[0]))
-                builtin_clear();
-            else if (cmd_matches("pwd", words.we_wordv[0]))
-                builtin_pwd();
-            else if (cmd_matches("exit", words.we_wordv[0])) { /* quick clean-up, then break */
-                wordfree(&words);
-                free(cmd);
-                break;
-            } else /* default to trying to execute the cmd line */
-                exec_command(words.we_wordv, 0);
-
-            add_history(cmd); /* add to the readline history */
-            wordfree(&words);
-        } /* if handle_wordexp_result (result) */
+        process_command(cmd, options);
         free(cmd);
     } /* for (;;) */
 }
@@ -266,7 +283,33 @@ int main(int argc, char *argv[]) {
     atexit(free_job_list);
     atexit(free_message_queue);
 
-    repl_start();
+    struct options options;
+
+    /* parse command line arguments, skipping over the program name at index 0 */
+    for (int i = 1; i < argc; i++) {
+        if (strncmp("-c", argv[i], 2) == 0) {
+            if (i == argc - 1) {
+                printf(RED "[ERROR] " CLEAR "Expected string after -c\n");
+                return 1;
+            } else {
+                i++;
+                options.command = argv[i];
+            }
+        } else if (strncmp("-v", argv[i], 2) == 0 || strncmp("--verbose", argv[i], 9) == 0) {
+            options.verbose = true;
+        } else {
+            printf(RED "[ERROR] " CLEAR "Unknown argument: %s\n", argv[i]);
+            return -1;
+        }
+    }
+
+    if (options.command) {
+        int retval = process_command(options.command, &options);
+        print_messages();
+        return retval;
+    }
+
+    repl_start(&options);
 
     return 0;
 }

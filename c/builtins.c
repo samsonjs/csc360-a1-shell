@@ -117,6 +117,6 @@ void builtin_clear(void) { printf("\033[2J"); }
 
 void builtin_pwd(void) {
     char *pwd = getcwd(NULL, 0);
-    queue_message(pwd);
+    printf("%s\n", pwd);
     xfree(pwd);
 }
