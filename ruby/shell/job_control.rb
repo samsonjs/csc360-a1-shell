@@ -25,7 +25,7 @@ module Shell
       if background
         job = Job.new(next_job_id, pid, cmd, args)
         @jobs_by_pid[pid] = job
-        puts "Background job #{job.id} (pid #{pid})"
+        puts white('Running job ') + yellow(job.id) + white(" (pid #{pid}) in background")
         Process.waitpid(pid, Process::WNOHANG)
         0
       else

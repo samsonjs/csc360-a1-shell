@@ -9,5 +9,8 @@ all: a1
 a1: $(OBJS)
 	$(CC) $(CFLAGS) -o a1 $(OBJS) $(LDFLAGS) -lreadline -lhistory -ltermcap
 
+test: a1
+	cd ../ruby && A1_PATH=../c/a1 bundle exec rake test
+
 clean:
 	rm -rf $(OBJS) a1

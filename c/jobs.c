@@ -15,7 +15,6 @@
 #include <string.h>
 
 #include "jobs.h"
-#include "main.h"
 #include "utils.h"
 
 #define MIN(a, b) ((a) < (b)) ? (a) : (b)

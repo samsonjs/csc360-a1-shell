@@ -20,7 +20,6 @@
 #include <unistd.h>
 
 #include "exec.h"
-#include "main.h"
 #include "utils.h"
 
 char *is_executable(char *file) {
@@ -54,10 +53,7 @@ pid_t exec_command(char **argv, int background) {
     char *filename;
 
     if (!(filename = is_executable(argv[0]))) { /* error, not executable */
-        char *msg = (char *)myxmalloc(MSGLEN);
-        sprintf(msg, RED "%s: %s" CLEAR, argv[0], strerror(errno));
-        queue_message(msg);
-        free(msg);
+        fprintf(stderr, RED "%s: %s\n" CLEAR, argv[0], strerror(errno));
         return -1;
     }
 
@@ -76,11 +72,11 @@ pid_t exec_command(char **argv, int background) {
         execv(filename, argv);
 
         /* if we get here there was an error, display it */
-        printf(RED "\nCannot execute '%s' (%s)\n" CLEAR, argv[0], strerror(errno));
+        fprintf(stderr, RED "\nCannot execute '%s' (%s)\n" CLEAR, argv[0], strerror(errno));
         free(filename);
         _exit(EXIT_FAILURE);
     } else { /* error, pid < 0 */
-        queue_message(RED "Unable to fork(), uh oh..." CLEAR);
+        fprintf(stderr, RED "Unable to fork(), uh oh...\n" CLEAR);
     }
     free(filename);
     return pid;

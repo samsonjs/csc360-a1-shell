@@ -31,8 +31,9 @@ class ShellTest < Minitest::Test
   #################################
 
   def test_background_job
-    output = `#{A1_PATH} -c 'bg echo hello'`
-    assert output.match?(/\ABackground job 1 \(pid \d+\)\nhello\n\z/m), "'#{output}' is unexpected"
+    output = `#{A1_PATH} -c 'bg echo hello'`.gsub(/\e\[([;\d]+)?m/, '')
+    pid = /\(pid (\d+)\)/.match(output)[1]
+    assert_equal "Running job 1 (pid #{pid}) in background\nhello\n", output
   end
 
   def test_resolves_executables_with_absolute_paths

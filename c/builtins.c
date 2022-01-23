@@ -22,46 +22,39 @@
 #include "builtins.h"
 #include "exec.h"
 #include "jobs.h"
-#include "main.h"
 #include "utils.h"
 
 int builtin_bg(int argc, char **argv) {
     if (argc < 2) {
-        queue_message("bg: usage 'bg <command>'");
-        queue_message("    runs <command> in the background");
+        fprintf(stderr, "bg: usage 'bg <command>'\n");
+        fprintf(stderr, "    runs <command> in the background\n");
         return -1;
     }
 
     pid_t pid = exec_command(&argv[1], 1); /* &argv[1] skips 'bg' */
     if (pid > 0) {
         job j = add_job(pid, &argv[1]);
-
-        char *message = (char *)myxmalloc(MSGLEN);
-        snprintf(message, MSGLEN, "Running job " YELLOW "%i" WHITE " (pid %i) in background" CLEAR, j->id, pid);
-        queue_message(message);
-        free(message);
+        printf("Running job " YELLOW "%i" WHITE " (pid %i) in background\n" CLEAR, j->id, pid);
     }
     return pid;
 }
 
 int builtin_bgkill(int argc, char **argv) {
     if (argc != 2) {
-        queue_message("bgkill: usage 'bgkill <job number>'");
-        queue_message("        type 'bglist' to see running jobs");
+        fprintf(stderr, "bgkill: usage 'bgkill <job number>'\n");
+        fprintf(stderr, "        type 'bglist' to see running jobs=n");
         return -1;
     }
 
     int job_id = atoi(argv[1]);
     job j = job_with_id(job_id);
     if (!j) {
-        queue_message(YELLOW "Invalid job number");
-        queue_message("(type 'bglist' to see running jobs)");
+        fprintf(stderr, YELLOW "Invalid job number\n");
+        fprintf(stderr, "(type 'bglist' to see running jobs)\n");
         return -1;
     }
 
     kill(j->pid, SIGTERM);
-    /*delete_job (j);*/
-    /*	queue_message ("Job killed");*/
     return 1;
 }
 
@@ -71,14 +64,10 @@ int builtin_bglist(void) {
         return 0;
 
     job j;
-    char *message = (char *)myxmalloc(MSGLEN);
     for (j = get_job_list(); j; j = j->next) {
-        snprintf(message, MSGLEN, YELLOW "%i" WHITE ": (pid %i)" YELLOW " %s" CLEAR, j->id, j->pid, j->cmdline);
-        queue_message(message);
+        printf(YELLOW "%i" WHITE ": (pid %i)" YELLOW " %s\n" CLEAR, j->id, j->pid, j->cmdline);
     }
-    snprintf(message, MSGLEN, GREEN "Total: %i background job(s) running" CLEAR, num_jobs);
-    queue_message(message);
-    free(message);
+    printf(GREEN "Total: %i background job(s) running\n" CLEAR, num_jobs);
     return num_jobs;
 }
 
@@ -99,11 +88,7 @@ int builtin_cd(int argc, char **argv) {
     }
 
     if (chdir(dir) < 0) { /* error */
-        size_t len = strlen(dir);
-        char *message = (char *)myxmalloc(len + MSGLEN);
-        (void)snprintf(message, len + MSGLEN, RED "cd: %s: %s" CLEAR, strerror(errno), dir);
-        queue_message(message);
-        free(message);
+        fprintf(stderr, RED "cd: %s: %s" CLEAR, strerror(errno), dir);
         return -1;
     }
 

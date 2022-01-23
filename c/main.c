@@ -45,63 +45,6 @@ struct options {
 };
 typedef struct options *options_t;
 
-struct message {
-    char *data;
-    struct message *next;
-};
-typedef struct message *message;
-
-static message msg_queue_head = NULL; /* message queue */
-
-/** queue messages so they don't mix with a running program's output
- * instead they're only displayed while waiting on input w/ readline
- * message m: freed in print_messages()
- */
-void queue_message(char *msg) {
-    message i, m = (message)myxmalloc(sizeof(struct message));
-    m->data = strdup(msg);
-    m->next = NULL;
-    for (i = msg_queue_head; i && i->next; i = i->next)
-        ;
-
-    if (!i) /* if i is NULL, then i == msg_queue_head == NULL */
-        msg_queue_head = m;
-    else /* queue m */
-        i->next = m;
-}
-
-void free_message_queue(void) {
-    message m, n = msg_queue_head;
-    while ((m = n)) {
-        n = m->next;
-        xfree(m->data);
-        free(m);
-    }
-    msg_queue_head = NULL;
-}
-
-int print_messages(void) {
-    if (!msg_queue_head)
-        return 0;
-
-    /* there must be an easier way to interrupt readline... */
-    char *old = rl_line_buffer;
-    rl_line_buffer = strdup("");
-    rl_save_prompt();
-    rl_clear_message();
-
-    message m;
-    for (m = msg_queue_head; m; m = m->next)
-        printf(WHITE "%s\n" CLEAR, m->data);
-    free_message_queue();
-
-    xfree(rl_line_buffer);
-    rl_line_buffer = old;
-    rl_restore_prompt();
-    rl_forced_update_display();
-    return 1;
-}
-
 /* like strerror for waitpid */
 char *strsignal(int status) {
     char *str = (char *)myxmalloc(MSGLEN);
@@ -154,11 +97,7 @@ void child_state_changed(int signum) {
     if (j) {
         char *strstatus = strsignal(status);
         /* alert the user of the termination, and delete the job */
-        size_t len = strlen(j->cmdline);
-        char *msg = (char *)myxmalloc(len + MSGLEN);
-        snprintf(msg, len + MSGLEN, YELLOW "%i" WHITE ": (pid %i) %s" YELLOW ": %s" CLEAR, j->id, j->pid, strstatus, j->cmdline);
-        queue_message(msg);
-        xfree(msg);
+        fprintf(stderr, YELLOW "%i" WHITE ": (pid %i) %s" YELLOW ": %s\n" CLEAR, j->id, j->pid, strstatus, j->cmdline);
         xfree(strstatus);
         delete_job(j);
     }
@@ -179,42 +118,39 @@ char *get_prompt(void) {
 int cmd_matches(char *trigger, char *cmd) { return !strcmp(trigger, cmd); }
 
 int handle_wordexp_result(int result, char *cmd) {
+    if (result == 0) /* success */
+        return 1;
+
     switch (result) {
-    case WRDE_BADCHAR:
-        /* gcc chokes if the int decl is first, lame */
-        ;
+    case WRDE_BADCHAR: {
         int invalid_char = strcspn(cmd, INVALID_CHARS);
         char *msg = (char *)myxmalloc(strlen(cmd) + MSGLEN);
         int i;
         for (i = 0; i < invalid_char; i++)
             *(msg + i) = ' ';
         sprintf(msg + invalid_char, RED "^ invalid character in column %i", invalid_char + 1);
-        queue_message(cmd);
-        queue_message(msg);
+        fprintf(stderr, "%s\n", cmd);
+        fprintf(stderr, "%s\n", msg);
         xfree(msg);
-        result = 0;
         break;
+    }
     case WRDE_BADVAL:
-        queue_message("undefined variable");
-        result = 0;
+        fprintf(stderr, "undefined variable\n");
         break;
     case WRDE_CMDSUB:
-        queue_message("no command substitution allowed");
-        result = 0;
+        fprintf(stderr, "no command substitution allowed\n");
         break;
     case WRDE_NOSPACE:
-        queue_message("not enough memory");
-        result = 0;
+        fprintf(stderr, "not enough memory\n");
         break;
     case WRDE_SYNTAX:
-        queue_message("syntax error");
-        result = 0;
+        fprintf(stderr, "syntax error\n");
         break;
     default:
-        /* success */
-        result = 1;
+        fprintf(stderr, "wordexp return an unknown error code %d\n", result);
+        break;
     }
-    return result;
+    return 0;
 }
 
 int process_command(char *line, options_t options) {
@@ -276,20 +212,19 @@ void repl_start(options_t options) {
 int main(int argc, char *argv[]) {
     signal(SIGCHLD, child_state_changed); /* catch SIGCHLD */
 
-    /* while waiting for input, display messasges */
-    rl_event_hook = print_messages;
-
     /* register clean-up function */
     atexit(free_job_list);
-    atexit(free_message_queue);
 
-    struct options options;
+    struct options options = {
+        NULL, /* command */
+        false /* verbose */
+    };
 
     /* parse command line arguments, skipping over the program name at index 0 */
     for (int i = 1; i < argc; i++) {
         if (strncmp("-c", argv[i], 2) == 0) {
             if (i == argc - 1) {
-                printf(RED "[ERROR] " CLEAR "Expected string after -c\n");
+                fprintf(stderr, RED "[ERROR] " CLEAR "Expected string after -c\n");
                 return 1;
             } else {
                 i++;
@@ -298,15 +233,13 @@ int main(int argc, char *argv[]) {
         } else if (strncmp("-v", argv[i], 2) == 0 || strncmp("--verbose", argv[i], 9) == 0) {
             options.verbose = true;
         } else {
-            printf(RED "[ERROR] " CLEAR "Unknown argument: %s\n", argv[i]);
+            fprintf(stderr, RED "[ERROR] " CLEAR "Unknown argument: %s\n", argv[i]);
             return -1;
         }
     }
 
     if (options.command) {
-        int retval = process_command(options.command, &options);
-        print_messages();
-        return retval;
+        return process_command(options.command, &options);
     }
 
     repl_start(&options);
