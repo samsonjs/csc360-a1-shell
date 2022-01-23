@@ -11,7 +11,6 @@
 
 #include <stdlib.h>
 
-#define DEBUG 1
 #define MSGLEN 255 /* soft limit on message lengths */
 
 /* these colours should be safe on dark and light backgrounds */

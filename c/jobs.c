@@ -35,15 +35,11 @@ job add_job(pid_t pid, char **argv) {
     j->id = get_next_id();
     j->pid = pid;
     j->cmdline = array_cat(argv);
-    if (DEBUG)
-        printf("DEBUG: cmdline='%s'\n", j->cmdline);
     j->next = NULL;
     j->prev = NULL;
 
     for (i = job_list_head; i && i->next; i = i->next) { /* insert jobs in job_id order */
         if (i->id > j->id) {                             /* insert BEFORE i */
-            if (DEBUG)
-                printf("DEBUG: i=%i, i->next=%i, i->prev=%p\n", i->id, i->next->id, i->prev);
             j->next = i;
             j->prev = i->prev;
             if (i->prev)
@@ -58,18 +54,12 @@ job add_job(pid_t pid, char **argv) {
 
     if (i == NULL) /* empty list */
     {
-        if (DEBUG)
-            printf("DEBUG: i=%p, job_list_head=%p\n", i, job_list_head);
         job_list_head = j;
     } else if (!i->next) /* at the end, i->next == NULL */
     {                    /* at this point, append the new job to the end of the list */
-        if (DEBUG)
-            printf("DEBUG: i=%i\n", i->id);
         i->next = j;
         j->prev = i;
     }
-    if (DEBUG)
-        printf("DEBUG: job added: (%i,%i)\n", j->id, j->pid);
     num_jobs++;
     return j;
 }
@@ -88,8 +78,6 @@ void delete_job(job j) {
     if (j->next)
         j->next->prev = j->prev;
 
-    if (DEBUG)
-        printf("DEBUG: str=%p\n", j->cmdline);
     xfree(j->cmdline);
     xfree(j);
     num_jobs--;
@@ -103,7 +91,6 @@ void free_job_list(void) {
 job job_with_id(int job_id) {
     job j;
     for (j = job_list_head; j; j = j->next) {
-        /*		printf("DEBUG: id=%i, j=%p:%i:%i\n", job_id, j, j->id, j->pid); */
         if (j->id == job_id)
             return j;
     }
@@ -113,7 +100,6 @@ job job_with_id(int job_id) {
 job job_with_pid(pid_t pid) {
     job j;
     for (j = job_list_head; j; j = j->next) {
-        printf("DEBUG: pid=%i, j=%p:%i:%i\n", pid, j, j->id, j->pid);
         if (j->pid == pid)
             return j;
     }

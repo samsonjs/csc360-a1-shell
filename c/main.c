@@ -221,12 +221,12 @@ int process_command(char *line, options_t options) {
     wordexp_t words;
     int result = wordexp(line, &words, WRDE_SHOWERR);
     if (handle_wordexp_result(result, line) && words.we_wordc > 0) {
-        if (DEBUG || options->verbose) {
+        if (options->verbose) {
             int i;
-            printf("[DEBUG] args = { ");
+            fprintf(stderr, "[DEBUG] args = { ");
             for (i = 0; i < words.we_wordc; i++)
-                printf("'%s', ", words.we_wordv[i]);
-            printf("}\n");
+                fprintf(stderr, "'%s', ", words.we_wordv[i]);
+            fprintf(stderr, "}\n");
         }
         /* try the built-in commands */
         if (cmd_matches("bg", words.we_wordv[0]))

@@ -18,8 +18,6 @@ char *array_cat(char **array) {
     char *p = NULL, *str = NULL;
     int i, pos = 0;
     for (i = 0; array[i]; i++) {
-        if (DEBUG)
-            printf("DEBUG: array[%i]=%p:'%s'\n", i, array[i], array[i]);
         int len = strlen(array[i]);
         str = (char *)myxrealloc(str, pos + len + 1);
         p = str + pos;
@@ -29,8 +27,6 @@ char *array_cat(char **array) {
         pos += len + 1;
     }
     *--p = '\0';
-    if (DEBUG)
-        printf("DEBUG: str=%p\n", str);
     return str;
 }
 
