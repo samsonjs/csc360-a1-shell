@@ -2,6 +2,9 @@ default: all
 
 all: c ruby
 
+bootstrap:
+	cd ruby && bundle
+
 c:
 	cd c && make test
 
