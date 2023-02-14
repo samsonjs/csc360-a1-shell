@@ -18,7 +18,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_expands_environment_variables
-    assert_equal ENV['HOME'], `#{A1_PATH} -c 'echo $HOME'`.chomp
+    assert_equal Dir.home, `#{A1_PATH} -c 'echo $HOME'`.chomp
     assert system("#{A1_PATH} -c 'echo $HOME' >/dev/null")
   end
 

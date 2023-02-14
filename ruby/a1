@@ -1,9 +1,6 @@
 #!/usr/bin/env ruby -w
 
 require 'English'
-
-$LOAD_PATH << File.expand_path(__dir__)
-
-require 'shell'
+require_relative './shell'
 
 Shell::CLI.new.run(args: ARGV) if $PROGRAM_NAME == __FILE__
