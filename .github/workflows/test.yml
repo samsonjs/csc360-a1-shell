@@ -1,0 +1,33 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ruby
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        env:
+          BUNDLE_GEMFILE: ruby/Gemfile
+        with:
+          ruby-version: 4.0.0
+          bundler-cache: true
+      - name: Run tests
+        run: bundle exec rake test
+      - name: Run standard
+        run: bundle exec rake standard
+      - name: Install C dependencies
+        working-directory: .
+        run: sudo apt-get update && sudo apt-get install -y libreadline-dev
+      - name: Run C tests
+        working-directory: .
+        run: make c

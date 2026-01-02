@@ -1,8 +1,8 @@
-require 'English'
+require "English"
 
-require 'shell/colours'
-require 'shell/job'
-require 'shell/logger'
+require "shell/colours"
+require "shell/job"
+require "shell/logger"
 
 module Shell
   class JobControl
@@ -17,7 +17,7 @@ module Shell
 
     def exec_command(cmd, args, background: false)
       unless (path = resolve_executable(cmd))
-        warn "#{red('[ERROR]')} command not found: #{cmd}"
+        warn "#{red("[ERROR]")} command not found: #{cmd}"
         return -2
       end
 
@@ -25,7 +25,7 @@ module Shell
       if background
         job = Job.new(next_job_id, pid, cmd, args)
         @jobs_by_pid[pid] = job
-        puts white('Running job ') + yellow(job.id) + white(" (pid #{pid}) in background")
+        puts white("Running job ") + yellow(job.id) + white(" (pid #{pid}) in background")
         Process.waitpid(pid, Process::WNOHANG)
         0
       else
@@ -38,8 +38,8 @@ module Shell
           0
         end
       end
-    rescue StandardError => e
-      warn "#{red('[ERROR]')} #{e.message} #{e.inspect}"
+    rescue => e
+      warn "#{red("[ERROR]")} #{e.message} #{e.inspect}"
       -5
     end
 
@@ -50,7 +50,7 @@ module Shell
         return
       end
 
-      Process.kill('TERM', job.pid)
+      Process.kill("TERM", job.pid)
     rescue Errno::ESRCH
       logger.warn "No such proccess: #{job.pid}"
     end
@@ -60,24 +60,24 @@ module Shell
     end
 
     def format_job(job)
-      args = job.args.join(' ')
-      "#{yellow(job.id)}: #{white('(pid ', job.pid, ')')} #{green(job.cmd)} #{args}"
+      args = job.args.join(" ")
+      "#{yellow(job.id)}: #{white("(pid ", job.pid, ")")} #{green(job.cmd)} #{args}"
     end
 
     def trap_sigchld
       # handler for SIGCHLD when a child's state changes
-      Signal.trap('CHLD') do |_signo|
+      Signal.trap("CHLD") do |_signo|
         pid = Process.waitpid(-1, Process::WNOHANG)
         if pid.nil?
           # no-op
         elsif (job = @jobs_by_pid[pid])
           @jobs_by_pid.delete(pid)
-          time = Time.now.strftime('%T')
-          job_text = yellow('job ', job.id, ' exited')
-          args = job.args.join(' ')
-          puts "\n[#{time}] #{job_text} #{white('(pid ', job.pid, ')')}: #{green(job.cmd)} #{args}"
+          time = Time.now.strftime("%T")
+          job_text = yellow("job ", job.id, " exited")
+          args = job.args.join(" ")
+          puts "\n[#{time}] #{job_text} #{white("(pid ", job.pid, ")")}: #{green(job.cmd)} #{args}"
         else
-          warn "\n#{yellow('[WARN]')} No job found for child with PID #{pid}"
+          warn "\n#{yellow("[WARN]")} No job found for child with PID #{pid}"
         end
         Readline.refresh_line
       end
@@ -88,11 +88,11 @@ module Shell
     # Returns nil when no such command was found.
     def resolve_executable(path_or_filename)
       # process absolute and relative paths directly
-      return path_or_filename if path_or_filename['/'] && \
-                                 File.executable?(path_or_filename)
+      return path_or_filename if path_or_filename["/"] &&
+        File.executable?(path_or_filename)
 
       filename = path_or_filename
-      ENV['PATH'].split(':').each do |dir|
+      ENV["PATH"].split(":").each do |dir|
         path = File.join(dir, filename)
         next unless File.exist?(path)
         return path if File.executable?(path)

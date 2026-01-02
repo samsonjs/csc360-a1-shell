@@ -1,11 +1,12 @@
-require 'rake/testtask'
+require "rake/testtask"
+require "standard/rake"
 
-task default: 'test'
+task default: %i[test standard]
 
 Rake::TestTask.new do |task|
-  task.pattern = 'test/*_test.rb'
+  task.pattern = "test/*_test.rb"
 end
 
 task :clean do
-  FileUtils.rm_rf('test_bin')
+  FileUtils.rm_rf("test_bin")
 end

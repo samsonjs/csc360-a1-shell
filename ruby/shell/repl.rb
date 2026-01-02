@@ -1,10 +1,14 @@
-require 'readline'
-require 'wordexp'
+begin
+  require "readline"
+rescue LoadError
+  require "reline"
+end
+require "wordexp"
 
-require 'shell/builtins'
-require 'shell/colours'
-require 'shell/job_control'
-require 'shell/logger'
+require "shell/builtins"
+require "shell/colours"
+require "shell/job_control"
+require "shell/logger"
 
 module Shell
   class REPL
@@ -55,13 +59,13 @@ module Shell
         job_control.exec_command(cmd, args)
       end
     rescue Errno => e
-      warn "#{red('[ERROR]')} #{e.message}"
+      warn "#{red("[ERROR]")} #{e.message}"
       -1
     end
 
     # Looks like this: /path/to/somewhere%
     def prompt(pwd)
-      "#{blue(pwd)}#{white('%')} #{CLEAR}"
+      "#{blue(pwd)}#{white("%")} #{CLEAR}"
     end
   end
 end

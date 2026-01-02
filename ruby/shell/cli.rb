@@ -1,6 +1,6 @@
-require 'shell/colours'
-require 'shell/logger'
-require 'shell/repl'
+require "shell/colours"
+require "shell/logger"
+require "shell/repl"
 
 module Shell
   class CLI
@@ -29,20 +29,20 @@ module Shell
 
     def parse_options(args)
       options = {
-        verbose: false,
+        verbose: false
       }
       while (arg = args.shift)
         case arg
-        when '-c'
+        when "-c"
           options[:command] = args.shift
           if options[:command].nil?
-            warn 'ERROR: expected string after -c'
+            warn "ERROR: expected string after -c"
             exit 1
           end
-        when '-v', '--verbose'
+        when "-v", "--verbose"
           options[:verbose] = true
         else
-          logger.warn "#{red('[ERROR]')} Unknown argument: #{arg}"
+          logger.warn "#{red("[ERROR]")} Unknown argument: #{arg}"
           exit 1
         end
       end
