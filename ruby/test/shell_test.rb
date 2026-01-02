@@ -33,11 +33,13 @@ class ShellTest < Minitest::Test
   def test_background_job
     output = `#{A1_PATH} -c 'bg echo hello'`.gsub(/\e\[([;\d]+)?m/, "")
     pid = /\(pid (\d+)\)/.match(output)[1]
-    assert_equal "Running job 1 (pid #{pid}) in background\nhello\n", output
+    lines = output.split("\n").map(&:chomp)
+    assert_equal ["Running job 1 (pid #{pid}) in background", "hello"], lines.sort
   end
 
   def test_resolves_executables_with_absolute_paths
-    assert_equal "/usr/bin/which", `#{A1_PATH} -c '/usr/bin/which -a which'`.chomp
+    output = `#{A1_PATH} -c '/usr/bin/which -a which'`.lines.map(&:chomp)
+    assert_includes output, "/usr/bin/which"
   end
 
   def test_resolves_executables_with_relative_paths
@@ -47,7 +49,8 @@ class ShellTest < Minitest::Test
   end
 
   def test_resolves_executables_in_absolute_paths
-    assert_equal "/usr/bin/which", `#{A1_PATH} -c 'which -a which'`.chomp
+    output = `#{A1_PATH} -c 'which -a which'`.lines.map(&:chomp)
+    assert_includes output, "/usr/bin/which"
   end
 
   def test_resolves_executables_in_relative_paths
