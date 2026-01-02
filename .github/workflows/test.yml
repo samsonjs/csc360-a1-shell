@@ -9,6 +9,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      APT_CACHE_DIR: ${{ github.workspace }}/.cache/apt/archives
     steps:
       - uses: actions/checkout@v6
       - name: Set up Ruby
@@ -21,15 +23,11 @@ jobs:
       - name: Cache apt packages
         uses: actions/cache@v4
         with:
-          path: /var/cache/apt/archives
-          key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/test.yml') }}
+          path: .cache/apt
+          key: ${{ runner.os }}-apt-${{ hashFiles('Makefile') }}
           restore-keys: |
             ${{ runner.os }}-apt-
       - name: Bootstrap
         run: make bootstrap
-      - name: Prepare apt cache
-        run: |
-          sudo rm -f /var/cache/apt/archives/lock
-          sudo chmod -R a+rX /var/cache/apt/archives
       - name: Run tests
         run: make
