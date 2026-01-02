@@ -21,13 +21,15 @@ jobs:
       - name: Cache apt packages
         uses: actions/cache@v4
         with:
-          path: |
-            /var/cache/apt
-            /var/lib/apt/lists
+          path: /var/cache/apt/archives
           key: ${{ runner.os }}-apt-${{ hashFiles('.github/workflows/test.yml') }}
           restore-keys: |
             ${{ runner.os }}-apt-
       - name: Bootstrap
         run: make bootstrap
+      - name: Prepare apt cache
+        run: |
+          sudo rm -f /var/cache/apt/archives/lock
+          sudo chmod -R a+rX /var/cache/apt/archives
       - name: Run tests
         run: make
