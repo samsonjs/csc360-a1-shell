@@ -3,30 +3,32 @@ begin
 rescue LoadError
   require "reline"
 end
-require "wordexp"
 
 require "shell/builtins"
 require "shell/colours"
 require "shell/job_control"
 require "shell/logger"
+require "shell/word_expander"
 
 module Shell
   class REPL
     include Colours
 
-    attr_reader :builtins, :job_control, :logger, :options
+    attr_reader :builtins, :job_control, :logger, :options, :word_expander
 
     attr_accessor :precmd_hook
 
-    def initialize(builtins: nil, job_control: nil, logger: nil)
+    def initialize(builtins: nil, job_control: nil, logger: nil, word_expander: nil)
       logger ||= Logger.instance
       job_control ||= JobControl.new(logger: logger)
       builtins ||= Builtins.new(job_control: job_control)
+      word_expander ||= WordExpander.new
 
       @builtins = builtins
       @job_control = job_control
       @logger = logger
       @options = {}
+      @word_expander = word_expander
     end
 
     def start(options: nil)
@@ -48,7 +50,7 @@ module Shell
       return 0 if line.strip.empty? # no input, no-op
 
       logger.verbose "Processing command: #{line.inspect}"
-      args = Wordexp.expand(line)
+      args = word_expander.expand(line)
       cmd = args.shift
       logger.verbose "Parsed command: #{cmd} #{args.inspect}"
       if builtins.builtin?(cmd)

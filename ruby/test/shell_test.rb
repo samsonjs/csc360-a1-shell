@@ -19,7 +19,8 @@ class ShellTest < Minitest::Test
 
   def test_expands_environment_variables
     assert_equal Dir.home, `#{A1_PATH} -c 'echo $HOME'`.chomp
-    assert system("#{A1_PATH} -c 'echo $HOME' >/dev/null")
+    assert_equal Dir.home, `#{A1_PATH} -c 'echo ${HOME}'`.chomp
+    assert_equal "#{Dir.home} #{Dir.home}", `#{A1_PATH} -c 'echo ${HOME} ${HOME}'`.chomp
   end
 
   def test_fails_on_unknown_variables
