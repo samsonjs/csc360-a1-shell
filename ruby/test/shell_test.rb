@@ -26,6 +26,36 @@ class ShellTest < Minitest::Test
     assert_equal false, system("#{A1_PATH} -c 'echo $DEFINITELY_DOES_NOT_EXIST' 2>/dev/null")
   end
 
+  def test_expands_tilde
+    assert_equal Dir.home, `#{A1_PATH} -c 'echo ~'`.chomp
+  end
+
+  def test_splits_words
+    assert_equal "a b c", `#{A1_PATH} -c 'echo a b c'`.chomp
+  end
+
+  def test_respects_double_quotes
+    assert_equal "a b", `#{A1_PATH} -c 'echo \"a b\"'`.chomp
+  end
+
+  def test_respects_single_quotes
+    assert_equal "a b", `#{A1_PATH} -c \"echo 'a b'\"`.chomp
+  end
+
+  def test_respects_backslash_escaping
+    assert_equal "a b", `#{A1_PATH} -c 'echo a\\ b'`.chomp
+  end
+
+  def test_expands_globs
+    File.write("globtest_a.txt", TRIVIAL_SHELL_SCRIPT)
+    File.write("globtest_b.txt", TRIVIAL_SHELL_SCRIPT)
+    output = `#{A1_PATH} -c 'echo globtest_*.txt'`.chomp.split
+    assert_equal ["globtest_a.txt", "globtest_b.txt"], output.sort
+  ensure
+    FileUtils.rm_f("globtest_a.txt")
+    FileUtils.rm_f("globtest_b.txt")
+  end
+
   #################################
   ### Execution and job control ###
   #################################
