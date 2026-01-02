@@ -29,5 +29,9 @@ jobs:
             ${{ runner.os }}-apt-
       - name: Bootstrap
         run: make bootstrap
+      - name: Prepare apt cache
+        run: |
+          sudo rm -f .cache/apt/archives/lock
+          sudo chown -R "$USER":"$USER" .cache/apt
       - name: Run tests
         run: make
