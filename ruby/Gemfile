@@ -1,5 +1,7 @@
 source "https://rubygems.org"
 
+gem "guard", "~> 2.19"
+gem "guard-rake", "~> 1.0"
 gem "minitest", "~> 6.0"
 gem "parser", "~> 3.3.10"
 gem "rake", "~> 13.0"

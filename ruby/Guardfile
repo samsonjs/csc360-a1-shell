@@ -1,0 +1,5 @@
+guard :rake, task: "test" do
+  watch(%r{^test/.*_test\.rb$})
+  watch(%r{^shell/.*\.rb$}) { "test" }
+  watch("shell.rb") { "test" }
+end
