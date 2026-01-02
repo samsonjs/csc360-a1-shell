@@ -1,5 +1,5 @@
-require 'shell/job_control'
-require 'shell/logger'
+require "shell/job_control"
+require "shell/logger"
 
 module Shell
   class Builtins
@@ -34,14 +34,14 @@ module Shell
       jobs.each do |job|
         puts job_control.format_job(job)
       end
-      plural = jobs.count == 1 ? '' : 's'
+      plural = (jobs.count == 1) ? "" : "s"
       puts "#{jobs.count} background job#{plural}"
       0
     end
 
     def builtin_bgkill(args)
       if args.count != 1
-        logger.warn 'Usage: bgkill <job>'
+        logger.warn "Usage: bgkill <job>"
         return -1
       end
 
@@ -57,11 +57,11 @@ module Shell
 
     def builtin_export(args)
       # only supports one variable and doesn't support quoting
-      name, *value_parts = args.first.strip.split('=')
+      name, *value_parts = args.first.strip.split("=")
       if name.nil? || name.empty?
-        logger.warn "#{red('[ERROR]')} Invalid export command"
+        logger.warn "#{red("[ERROR]")} Invalid export command"
       else
-        ENV[name] = value_parts.join('=').gsub(/\$\w+/) { |m| ENV[m[1..]] || '' }
+        ENV[name] = value_parts.join("=").gsub(/\$\w+/) { |m| ENV[m[1..]] || "" }
       end
       0
     end

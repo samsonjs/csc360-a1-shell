@@ -1,4 +1,4 @@
-require 'shell/colours'
+require "shell/colours"
 
 module Shell
   # Queues up messages to be printed out when readline is waiting for input, to prevent
@@ -19,16 +19,16 @@ module Shell
     end
 
     def log(message)
-      @logs << Log.new(:info, "#{white('[INFO]')} #{message}")
+      @logs << Log.new(:info, "#{white("[INFO]")} #{message}")
     end
-    alias info log
+    alias_method :info, :log
 
     def warn(message)
-      @logs << Log.new(:warning, "#{yellow('[WARN]')} #{message}")
+      @logs << Log.new(:warning, "#{yellow("[WARN]")} #{message}")
     end
 
     def error(message)
-      @logs << Log.new(:error, "#{red('[ERROR]')} #{message}")
+      @logs << Log.new(:error, "#{red("[ERROR]")} #{message}")
     end
 
     def verbose(message)
