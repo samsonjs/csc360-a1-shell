@@ -108,11 +108,11 @@ class ShellTest < Minitest::Test
   #########################
 
   def test_builtin_cd_no_args
-    skip "cannot easily implement without sequencing with ; or &&"
+    assert_equal Dir.home, `#{A1_PATH} -c 'cd; echo $PWD'`.strip
   end
 
   def test_builtin_cd
-    skip "cannot easily implement without sequencing with ; or &&"
+    assert_equal File.join(Dir.pwd, "blah"), `#{A1_PATH} -c 'mkdir -p blah; cd blah; echo $PWD; cd ..; rm -rf blah'`.strip
   end
 
   def test_builtin_cd_dash

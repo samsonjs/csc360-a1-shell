@@ -51,7 +51,13 @@ module Shell
     end
 
     def builtin_cd(args)
-      Dir.chdir args.first
+      dir = args.first
+      if dir.nil?
+        Dir.chdir Dir.home
+      else
+        Dir.chdir dir
+      end
+      ENV["PWD"] = Dir.pwd
       0
     end
 
