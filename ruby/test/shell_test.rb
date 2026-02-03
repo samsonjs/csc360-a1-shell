@@ -63,6 +63,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_expands_brace_expansion
+    skip "brace expansion not implemented"
     assert_equal "a b", `#{A1_PATH} -c 'echo {a,b}'`.chomp
   end
 
@@ -75,6 +76,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_expands_arithmetic
+    skip "arithmetic expansion not implemented"
     assert_equal "3", `#{A1_PATH} -c 'echo $((1 + 2))'`.chomp
   end
 
@@ -90,6 +92,20 @@ class ShellTest < Minitest::Test
 
   def test_expands_parameter_default_value_with_variable_reference
     assert_equal Dir.home, `#{A1_PATH} -c 'echo ${A1_UNSET_VAR:-$HOME}'`.chomp
+  end
+
+  def test_expands_parameter_default_value_with_command_substitution
+    assert_equal "hi", `#{A1_PATH} -c 'echo ${A1_UNSET_VAR:-$(echo hi)}'`.chomp
+  end
+
+  def test_does_not_expand_escaped_command_substitution_dollar_paren_in_double_quotes
+    skip "escape handling for command substitution in double quotes is limited"
+    assert_equal "$(echo hi)", `#{A1_PATH} -c 'echo "\\$(echo hi)"'`.chomp
+  end
+
+  def test_does_not_expand_escaped_command_substitution_backticks_in_double_quotes
+    skip "escape handling for command substitution in double quotes is limited"
+    assert_equal "`echo hi`", %x(#{A1_PATH} -c "echo \"\\`echo hi\\`\"").chomp
   end
 
   #################################

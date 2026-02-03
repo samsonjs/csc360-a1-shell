@@ -1,4 +1,5 @@
 require "shellwords"
+require "open3"
 
 module Shell
   class WordExpander
@@ -14,7 +15,8 @@ module Shell
     # - Glob expansion on files and directories
     def expand(line)
       protected_line = protect_escaped_dollars(line)
-      shellsplit(protected_line)
+      substituted_line = expand_command_substitution(protected_line)
+      shellsplit(substituted_line)
         .map do |word|
           expand_variables(word).tr(ESCAPED_DOLLAR, "$")
           # TODO: expand globs
@@ -106,6 +108,136 @@ module Shell
           ENV.fetch(raw)
         end
       end
+    end
+
+    def expand_command_substitution(line)
+      output = +""
+      i = 0
+      state = :unquoted
+      while i < line.length
+        c = line[i]
+        case state
+        when :unquoted
+          case c
+          when "'"
+            output << c
+            state = :single_quoted
+            i += 1
+          when "\""
+            output << c
+            state = :double_quoted
+            i += 1
+          when "`"
+            cmd, i = read_backtick(line, i + 1)
+            output << run_command_substitution(cmd)
+          when "$"
+            if line[i + 1] == "("
+              cmd, i = read_dollar_paren(line, i + 2)
+              output << run_command_substitution(cmd)
+            else
+              output << c
+              i += 1
+            end
+          else
+            output << c
+            i += 1
+          end
+
+        when :single_quoted
+          output << c
+          state = :unquoted if c == "'"
+          i += 1
+
+        when :double_quoted
+          case c
+          when "\""
+            output << c
+            state = :unquoted
+            i += 1
+          when "`"
+            cmd, i = read_backtick(line, i + 1)
+            output << run_command_substitution(cmd)
+          when "$"
+            if line[i + 1] == "("
+              cmd, i = read_dollar_paren(line, i + 2)
+              output << run_command_substitution(cmd)
+            else
+              output << c
+              i += 1
+            end
+          else
+            output << c
+            i += 1
+          end
+        end
+      end
+      output
+    end
+
+    def read_backtick(line, start_index)
+      output = +""
+      i = start_index
+      while i < line.length
+        c = line[i]
+        if c == "`"
+          return [output, i + 1]
+        end
+        if c == "\\"
+          if i + 1 < line.length
+            output << line[i + 1]
+            i += 2
+            next
+          end
+        end
+        output << c
+        i += 1
+      end
+      raise ArgumentError, "Unmatched backtick"
+    end
+
+    def read_dollar_paren(line, start_index)
+      output = +""
+      i = start_index
+      depth = 1
+      state = :unquoted
+      while i < line.length
+        c = line[i]
+        case state
+        when :unquoted
+          case c
+          when "("
+            depth += 1
+            output << c
+          when ")"
+            depth -= 1
+            return [output, i + 1] if depth.zero?
+            output << c
+          when "'"
+            state = :single_quoted
+            output << c
+          when "\""
+            state = :double_quoted
+            output << c
+          else
+            output << c
+          end
+        when :single_quoted
+          output << c
+          state = :unquoted if c == "'"
+        when :double_quoted
+          output << c
+          state = :unquoted if c == "\""
+        end
+        i += 1
+      end
+      raise ArgumentError, "Unmatched $(...)"
+    end
+
+    def run_command_substitution(command)
+      stdout, status = Open3.capture2("/bin/sh", "-c", command)
+      raise Errno::ENOENT, command unless status.success?
+      stdout = stdout.sub(/\n+\z/, "")
+      stdout.tr("\n", " ")
     end
 
     def protect_escaped_dollars(line)
