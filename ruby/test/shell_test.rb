@@ -1,5 +1,9 @@
 require "minitest/autorun"
 require "etc"
+require "timeout"
+$LOAD_PATH.unshift(File.expand_path("..", __dir__))
+require_relative "../shell/job_control"
+require_relative "../shell/logger"
 
 class ShellTest < Minitest::Test
   TRIVIAL_SHELL_SCRIPT = "#!/bin/sh\ntrue".freeze
@@ -151,7 +155,21 @@ class ShellTest < Minitest::Test
   end
 
   def test_refreshes_readline_after_bg_execution
-    skip "unimplemented"
+    called = false
+    job_control = Shell::JobControl.new(
+      logger: Shell::Logger.instance,
+      refresh_line: -> { called = true }
+    )
+    previous = job_control.trap_sigchld
+    begin
+      job_control.exec_command("echo", ["hello"], background: true)
+      Timeout.timeout(2) do
+        sleep 0.01 until called
+      end
+      assert called
+    ensure
+      Signal.trap("CHLD", previous)
+    end
   end
 
   #########################
