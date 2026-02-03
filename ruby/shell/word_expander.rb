@@ -3,6 +3,7 @@ require "shellwords"
 module Shell
   class WordExpander
     ENV_VAR_REGEX = /\$(?:\{([^}]+)\}|(\w+)\b)/
+    ESCAPED_DOLLAR = "\u0001"
 
     # Splits the given line into multiple words, performing the following transformations:
     #
@@ -11,13 +12,15 @@ module Shell
     # - Tilde expansion, which means that ~ is expanded to $HOME
     # - Glob expansion on files and directories
     def expand(line)
-      shellsplit(line)
+      protected_line = protect_escaped_dollars(line)
+      shellsplit(protected_line)
         .map do |word|
           word
             .gsub(ENV_VAR_REGEX) do
               name = Regexp.last_match(2) || Regexp.last_match(1)
               ENV.fetch(name)
             end
+            .tr(ESCAPED_DOLLAR, "$")
           # TODO: expand globs
         end
     end
@@ -93,6 +96,30 @@ module Shell
 
     def expand_globs(word)
       Dir.glob(word)
+    end
+
+    def protect_escaped_dollars(line)
+      output = +""
+      i = 0
+      while i < line.length
+        if line.getbyte(i) == "\\".ord
+          j = i + 1
+          j += 1 while j < line.length && line.getbyte(j) == "\\".ord
+          count = j - i
+          if j < line.length && line.getbyte(j) == "$".ord && count.odd?
+            output << ("\\" * (count - 1))
+            output << ESCAPED_DOLLAR
+            i = j + 1
+          else
+            output << ("\\" * count)
+            i = j
+          end
+        else
+          output << line[i]
+          i += 1
+        end
+      end
+      output
     end
   end
 end
