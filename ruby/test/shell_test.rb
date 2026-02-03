@@ -1,4 +1,5 @@
 require "minitest/autorun"
+require "etc"
 
 class ShellTest < Minitest::Test
   TRIVIAL_SHELL_SCRIPT = "#!/bin/sh\ntrue".freeze
@@ -55,6 +56,36 @@ class ShellTest < Minitest::Test
   ensure
     FileUtils.rm_f("globtest_a.txt")
     FileUtils.rm_f("globtest_b.txt")
+  end
+
+  def test_does_not_expand_escaped_dollar
+    assert_equal "$HOME", `#{A1_PATH} -c 'echo \\$HOME'`.chomp
+  end
+
+  def test_expands_brace_expansion
+    assert_equal "a b", `#{A1_PATH} -c 'echo {a,b}'`.chomp
+  end
+
+  def test_expands_command_substitution_backticks
+    assert_equal "hi", %x(#{A1_PATH} -c 'echo `echo hi`').chomp
+  end
+
+  def test_expands_command_substitution_dollar_paren
+    assert_equal "hi", `#{A1_PATH} -c 'echo $(echo hi)'`.chomp
+  end
+
+  def test_expands_arithmetic
+    assert_equal "3", `#{A1_PATH} -c 'echo $((1 + 2))'`.chomp
+  end
+
+  def test_expands_tilde_user
+    user = Etc.getlogin
+    skip "no login user" unless user
+    assert_equal Dir.home(user), `#{A1_PATH} -c 'echo ~#{user}'`.chomp
+  end
+
+  def test_expands_parameter_default_value
+    assert_equal "fallback", `#{A1_PATH} -c 'echo ${A1_UNSET_VAR:-fallback}'`.chomp
   end
 
   #################################
