@@ -75,8 +75,11 @@ class ShellTest < Minitest::Test
   end
 
   def test_expands_arithmetic
-    skip "arithmetic expansion not implemented"
     assert_equal "3", `#{A1_PATH} -c 'echo $((1 + 2))'`.chomp
+  end
+
+  def test_expands_arithmetic_with_variables
+    assert_equal "3", `A1_NUM=2 #{A1_PATH} -c 'echo $((A1_NUM + 1))'`.chomp
   end
 
   def test_expands_tilde_user
