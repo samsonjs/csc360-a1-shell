@@ -18,11 +18,19 @@ module Shell
       protected_line = protect_escaped_dollars(line)
       substituted_line = expand_command_substitution(protected_line)
       shellsplit(substituted_line)
-        .map do |word|
-          expand_variables(word)
+        .flat_map do |word|
+          expanded = expand_variables(word)
             .tr(ESCAPED_DOLLAR, "$")
             .tr(ESCAPED_BACKTICK, "`")
-          # TODO: expand globs
+          expand_braces(expanded)
+        end
+        .flat_map do |word|
+          if word =~ /[*?\[]/
+            glob_words = expand_globs(word)
+            glob_words.empty? ? [word] : glob_words
+          else
+            [word]
+          end
         end
     end
 
@@ -266,6 +274,20 @@ module Shell
       raise Errno::ENOENT, command unless status.success?
       stdout = stdout.sub(/\n+\z/, "")
       stdout.tr("\n", " ")
+    end
+
+    def expand_braces(word)
+      # Simple, non-nested brace expansion: pre{a,b}post -> preapost, prebpost
+      match = word.match(/(.*?)\{([^{}]*)\}(.*)/)
+      return [word] unless match
+
+      prefix = match[1]
+      body = match[2]
+      suffix = match[3]
+      return [word] unless body.include?(",")
+
+      parts = body.split(",", -1)
+      parts.flat_map { |part| expand_braces(prefix + part + suffix) }
     end
 
     def escaped_replacement(char)
