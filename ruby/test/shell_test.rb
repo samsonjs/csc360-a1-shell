@@ -88,6 +88,10 @@ class ShellTest < Minitest::Test
     assert_equal "fallback", `#{A1_PATH} -c 'echo ${A1_UNSET_VAR:-fallback}'`.chomp
   end
 
+  def test_expands_parameter_default_value_with_variable_reference
+    assert_equal Dir.home, `#{A1_PATH} -c 'echo ${A1_UNSET_VAR:-$HOME}'`.chomp
+  end
+
   #################################
   ### Execution and job control ###
   #################################
