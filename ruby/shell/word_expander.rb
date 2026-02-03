@@ -6,6 +6,7 @@ module Shell
     ENV_VAR_REGEX = /\$(?:\{([^}]+)\}|(\w+)\b)/
     DEFAULT_VAR_REGEX = /\A(\w+):-([\s\S]*)\z/
     ESCAPED_DOLLAR = "\u0001"
+    ESCAPED_BACKTICK = "\u0002"
 
     # Splits the given line into multiple words, performing the following transformations:
     #
@@ -18,7 +19,9 @@ module Shell
       substituted_line = expand_command_substitution(protected_line)
       shellsplit(substituted_line)
         .map do |word|
-          expand_variables(word).tr(ESCAPED_DOLLAR, "$")
+          expand_variables(word)
+            .tr(ESCAPED_DOLLAR, "$")
+            .tr(ESCAPED_BACKTICK, "`")
           # TODO: expand globs
         end
     end
@@ -138,6 +141,23 @@ module Shell
               output << c
               i += 1
             end
+          when "\\"
+            if i + 1 < line.length
+              escaped = line[i + 1]
+              if escaped == "$"
+                output << ESCAPED_DOLLAR
+                i += 2
+              elsif escaped == "`"
+                output << ESCAPED_BACKTICK
+                i += 2
+              else
+                output << c
+                i += 1
+              end
+            else
+              output << c
+              i += 1
+            end
           else
             output << c
             i += 1
@@ -154,6 +174,20 @@ module Shell
             output << c
             state = :unquoted
             i += 1
+          when "\\"
+            if i + 1 < line.length
+              escaped = line[i + 1]
+              if escaped == "$" || escaped == "`" || escaped == "\\" || escaped == "\""
+                output << (escaped == "$" ? ESCAPED_DOLLAR : (escaped == "`" ? ESCAPED_BACKTICK : escaped))
+              else
+                output << "\\"
+                output << escaped
+              end
+              i += 2
+            else
+              output << c
+              i += 1
+            end
           when "`"
             cmd, i = read_backtick(line, i + 1)
             output << run_command_substitution(cmd)
@@ -263,5 +297,6 @@ module Shell
       end
       output
     end
+
   end
 end

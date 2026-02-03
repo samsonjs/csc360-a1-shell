@@ -113,12 +113,7 @@ module Shell
           state = :unquoted if c == "\""
 
         when :double_quoted_escape
-          case c
-          when "\"", "\\", "$", "`"
-            # no-op
-          else
-            command << "\\" # POSIX behaviour, backslash remains
-          end
+          command << "\\"
           command << c
           state = :double_quoted
 

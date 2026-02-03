@@ -99,13 +99,11 @@ class ShellTest < Minitest::Test
   end
 
   def test_does_not_expand_escaped_command_substitution_dollar_paren_in_double_quotes
-    skip "escape handling for command substitution in double quotes is limited"
-    assert_equal "$(echo hi)", `#{A1_PATH} -c 'echo "\\$(echo hi)"'`.chomp
+    assert_equal "$(echo hi)", %x(#{A1_PATH} -c 'echo "\\$(echo hi)"').chomp
   end
 
   def test_does_not_expand_escaped_command_substitution_backticks_in_double_quotes
-    skip "escape handling for command substitution in double quotes is limited"
-    assert_equal "`echo hi`", %x(#{A1_PATH} -c "echo \"\\`echo hi\\`\"").chomp
+    assert_equal "`echo hi`", %x(#{A1_PATH} -c 'echo "\\`echo hi\\`"').chomp
   end
 
   #################################
