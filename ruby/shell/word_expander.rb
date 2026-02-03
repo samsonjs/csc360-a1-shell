@@ -177,11 +177,7 @@ module Shell
             if i + 1 < line.length
               escaped = line[i + 1]
               if escaped == "$" || escaped == "`" || escaped == "\\" || escaped == "\""
-                output << (if escaped == "$"
-                             ESCAPED_DOLLAR
-                           else
-                             ((escaped == "`") ? ESCAPED_BACKTICK : escaped)
-                end)
+                output << escaped_replacement(escaped)
               else
                 output << "\\"
                 output << escaped
@@ -270,6 +266,17 @@ module Shell
       raise Errno::ENOENT, command unless status.success?
       stdout = stdout.sub(/\n+\z/, "")
       stdout.tr("\n", " ")
+    end
+
+    def escaped_replacement(char)
+      case char
+      when "$"
+        ESCAPED_DOLLAR
+      when "`"
+        ESCAPED_BACKTICK
+      else
+        char
+      end
     end
 
     def protect_escaped_dollars(line)
