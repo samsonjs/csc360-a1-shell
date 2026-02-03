@@ -51,8 +51,12 @@ module Shell
 
       logger.verbose "Processing command: #{line.inspect}"
       commands = parse_line(line)
-      result = nil
-      commands.each do |command|
+      result = 0
+      commands.each do |entry|
+        command = entry[:command]
+        next if command.strip.empty?
+        next if entry[:op] == :and && result != 0
+
         args = word_expander.expand(command)
         program = args.shift
         logger.verbose "Parsed command: #{program} #{args.inspect}"
@@ -79,13 +83,29 @@ module Shell
       commands = []
       command = "".dup
       state = :unquoted
-      line.each_char do |c|
+      next_op = :always
+      i = 0
+      while i < line.length
+        c = line[i]
         case state
         when :unquoted
           case c
           when ";"
-            commands << command
+            commands << {command: command, op: next_op}
             command = "".dup
+            next_op = :always
+            i += 1
+            next
+          when "&"
+            if line[i + 1] == "&"
+              commands << {command: command, op: next_op}
+              command = "".dup
+              next_op = :and
+              i += 2
+              next
+            else
+              command << c
+            end
           when "'"
             command << c
             state = :single_quoted
@@ -124,8 +144,9 @@ module Shell
         else
           raise "Unknown state #{state}"
         end
+        i += 1
       end
-      commands << command
+      commands << {command: command, op: next_op}
       commands
     end
   end

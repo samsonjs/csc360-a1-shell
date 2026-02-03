@@ -52,11 +52,16 @@ module Shell
 
     def builtin_cd(args)
       dir = args.first
-      if dir.nil?
-        Dir.chdir Dir.home
+      oldpwd = Dir.pwd
+      target = if dir.nil?
+        Dir.home
+      elsif dir == "-"
+        ENV["OLDPWD"] || oldpwd
       else
-        Dir.chdir dir
+        dir
       end
+      Dir.chdir target
+      ENV["OLDPWD"] = oldpwd
       ENV["PWD"] = Dir.pwd
       0
     end
