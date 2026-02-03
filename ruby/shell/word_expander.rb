@@ -53,8 +53,7 @@ module Shell
       field = "".dup
       at_word_start = true
       found_glob_char = false
-      line.scan(/\G\s*(?>([^\0\s\\'"]+)|'([^\0']*)'|"((?:[^\0"\\]|\\[^\0])*)"|(\\[^\0]?)|(\S))(\s|\z)?/m) do
-        |word, sq, dq, esc, garbage, sep|
+      line.scan(/\G\s*(?>([^\0\s\\'"]+)|'([^\0']*)'|"((?:[^\0"\\]|\\[^\0])*)"|(\\[^\0]?)|(\S))(\s|\z)?/m) do |word, sq, dq, esc, garbage, sep|
         if garbage
           b = $~.begin(0)
           line = $~[0]
@@ -106,7 +105,7 @@ module Shell
           name = m[1]
           fallback = m[2]
           env_value = ENV[name]
-          env_value.nil? || env_value.empty? ? expand_variables(fallback) : env_value
+          (env_value.nil? || env_value.empty?) ? expand_variables(fallback) : env_value
         else
           ENV.fetch(raw)
         end
@@ -178,7 +177,11 @@ module Shell
             if i + 1 < line.length
               escaped = line[i + 1]
               if escaped == "$" || escaped == "`" || escaped == "\\" || escaped == "\""
-                output << (escaped == "$" ? ESCAPED_DOLLAR : (escaped == "`" ? ESCAPED_BACKTICK : escaped))
+                output << (if escaped == "$"
+                             ESCAPED_DOLLAR
+                           else
+                             ((escaped == "`") ? ESCAPED_BACKTICK : escaped)
+                end)
               else
                 output << "\\"
                 output << escaped
@@ -241,20 +244,15 @@ module Shell
           case c
           when "("
             depth += 1
-            output << c
           when ")"
             depth -= 1
             return [output, i + 1] if depth.zero?
-            output << c
           when "'"
             state = :single_quoted
-            output << c
           when "\""
             state = :double_quoted
-            output << c
-          else
-            output << c
           end
+          output << c
         when :single_quoted
           output << c
           state = :unquoted if c == "'"
@@ -297,6 +295,5 @@ module Shell
       end
       output
     end
-
   end
 end
