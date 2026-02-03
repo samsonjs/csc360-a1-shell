@@ -68,7 +68,12 @@ module Shell
         found_glob_char = word && word =~ /[*?\[]/ # must be unquoted
         # Expand tildes at the beginning of unquoted words.
         if word && at_word_start
-          field.sub!(/^~/, Dir.home)
+          field.sub!(/^~([^\/]*)/) do
+            user = Regexp.last_match(1)
+            user.empty? ? Dir.home : Dir.home(user)
+          rescue ArgumentError
+            "~#{user}"
+          end
         end
         at_word_start = false
         if sep
