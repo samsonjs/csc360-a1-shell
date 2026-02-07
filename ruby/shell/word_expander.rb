@@ -1,5 +1,6 @@
 require "shellwords"
 require "open3"
+require "shell/string_parser"
 
 module Shell
   class WordExpander
@@ -23,14 +24,6 @@ module Shell
             .tr(ESCAPED_DOLLAR, "$")
             .tr(ESCAPED_BACKTICK, "`")
           expand_braces(expanded)
-        end
-        .flat_map do |word|
-          if /[*?\[]/.match?(word)
-            glob_words = expand_globs(word)
-            glob_words.empty? ? [word] : glob_words
-          else
-            [word]
-          end
         end
     end
 
@@ -139,7 +132,7 @@ module Shell
             i += 1
           when "`"
             cmd, i = read_backtick(line, i + 1)
-            output << run_command_substitution(cmd)
+            output << escape_substitution_output(run_command_substitution(cmd), :unquoted)
           when "$"
             if line[i + 1] == "("
               if line[i + 2] == "("
@@ -147,7 +140,7 @@ module Shell
                 output << expand_arithmetic(expr)
               else
                 cmd, i = read_dollar_paren(line, i + 2)
-                output << run_command_substitution(cmd)
+                output << escape_substitution_output(run_command_substitution(cmd), :unquoted)
               end
             else
               output << c
@@ -189,7 +182,7 @@ module Shell
           when "\\"
             if i + 1 < line.length
               escaped = line[i + 1]
-              if escaped == "$" || escaped == "`" || escaped == "\\" || escaped == "\""
+              if escaped == "$" || escaped == "`"
                 output << escaped_replacement(escaped)
               else
                 output << "\\"
@@ -202,7 +195,7 @@ module Shell
             end
           when "`"
             cmd, i = read_backtick(line, i + 1)
-            output << run_command_substitution(cmd)
+            output << escape_substitution_output(run_command_substitution(cmd), :double_quoted)
           when "$"
             if line[i + 1] == "("
               if line[i + 2] == "("
@@ -210,7 +203,7 @@ module Shell
                 output << expand_arithmetic(expr)
               else
                 cmd, i = read_dollar_paren(line, i + 2)
-                output << run_command_substitution(cmd)
+                output << escape_substitution_output(run_command_substitution(cmd), :double_quoted)
               end
             else
               output << c
@@ -247,36 +240,7 @@ module Shell
     end
 
     def read_dollar_paren(line, start_index)
-      output = +""
-      i = start_index
-      depth = 1
-      state = :unquoted
-      while i < line.length
-        c = line[i]
-        case state
-        when :unquoted
-          case c
-          when "("
-            depth += 1
-          when ")"
-            depth -= 1
-            return [output, i + 1] if depth.zero?
-          when "'"
-            state = :single_quoted
-          when "\""
-            state = :double_quoted
-          end
-          output << c
-        when :single_quoted
-          output << c
-          state = :unquoted if c == "'"
-        when :double_quoted
-          output << c
-          state = :unquoted if c == "\""
-        end
-        i += 1
-      end
-      raise ArgumentError, "Unmatched $(...)"
+      StringParser.read_dollar_paren(line, start_index)
     end
 
     def read_arithmetic(line, start_index)
@@ -313,6 +277,18 @@ module Shell
       raise Errno::ENOENT, command unless status.success?
       stdout = stdout.sub(/\n+\z/, "")
       stdout.tr("\n", " ")
+    end
+
+    def escape_substitution_output(value, context)
+      escaped = value.gsub("$", ESCAPED_DOLLAR)
+      case context
+      when :double_quoted
+        escaped.gsub(/([\\"])/, '\\\\\1')
+      when :unquoted
+        escaped.gsub(/(\\|["'])/, '\\\\\1')
+      else
+        escaped
+      end
     end
 
     def expand_arithmetic(expr)

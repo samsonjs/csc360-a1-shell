@@ -8,6 +8,7 @@ require "shell/builtins"
 require "shell/colours"
 require "shell/job_control"
 require "shell/logger"
+require "shell/string_parser"
 require "shell/word_expander"
 
 module Shell
@@ -80,74 +81,7 @@ module Shell
     end
 
     def parse_line(line)
-      commands = []
-      command = "".dup
-      state = :unquoted
-      next_op = :always
-      i = 0
-      while i < line.length
-        c = line[i]
-        case state
-        when :unquoted
-          case c
-          when ";"
-            commands << {command: command, op: next_op}
-            command = "".dup
-            next_op = :always
-            i += 1
-            next
-          when "&"
-            if line[i + 1] == "&"
-              commands << {command: command, op: next_op}
-              command = "".dup
-              next_op = :and
-              i += 2
-              next
-            else
-              command << c
-            end
-          when "'"
-            command << c
-            state = :single_quoted
-          when "\""
-            command << c
-            state = :double_quoted
-          when "\\"
-            command << c
-            state = :escaped
-          else
-            command << c
-          end
-
-        when :single_quoted
-          command << c
-          state = :unquoted if c == "'"
-
-        when :double_quoted
-          case c
-          when "\\"
-            state = :double_quoted_escape
-          else
-            command << c
-          end
-          state = :unquoted if c == "\""
-
-        when :double_quoted_escape
-          command << "\\"
-          command << c
-          state = :double_quoted
-
-        when :escaped
-          command << c
-          state = :unquoted
-
-        else
-          raise "Unknown state #{state}"
-        end
-        i += 1
-      end
-      commands << {command: command, op: next_op}
-      commands
+      StringParser.split_commands(line)
     end
   end
 end

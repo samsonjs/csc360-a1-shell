@@ -44,6 +44,10 @@ class ShellTest < Minitest::Test
     assert_equal "a b", `#{A1_PATH} -c 'echo \"a b\"'`.chomp
   end
 
+  def test_respects_escaped_double_quote_in_double_quotes
+    assert_equal "a\"b", `#{A1_PATH} -c 'echo \"a\\\"b\"'`.chomp
+  end
+
   def test_respects_single_quotes
     assert_equal "a b", `#{A1_PATH} -c \"echo 'a b'\"`.chomp
   end
@@ -62,6 +66,16 @@ class ShellTest < Minitest::Test
     FileUtils.rm_f("globtest_b.txt")
   end
 
+  def test_does_not_reglob_expanded_paths
+    File.write("globspecial_a.txt", TRIVIAL_SHELL_SCRIPT)
+    File.write("globspecial_[a].txt", TRIVIAL_SHELL_SCRIPT)
+    output = `#{A1_PATH} -c 'echo globspecial_*.txt'`.chomp.split
+    assert_equal ["globspecial_[a].txt", "globspecial_a.txt"], output.sort
+  ensure
+    FileUtils.rm_f("globspecial_a.txt")
+    FileUtils.rm_f("globspecial_[a].txt")
+  end
+
   def test_does_not_expand_escaped_dollar
     assert_equal "$HOME", `#{A1_PATH} -c 'echo \\$HOME'`.chomp
   end
@@ -76,6 +90,10 @@ class ShellTest < Minitest::Test
 
   def test_expands_command_substitution_dollar_paren
     assert_equal "hi", `#{A1_PATH} -c 'echo $(echo hi)'`.chomp
+  end
+
+  def test_expands_command_substitution_with_escaped_quote
+    assert_equal "a\"b", `#{A1_PATH} -c 'echo $(printf \"%s\" \"a\\\"b\")'`.chomp
   end
 
   def test_expands_arithmetic
