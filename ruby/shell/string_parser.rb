@@ -21,6 +21,9 @@ module Shell
               next
             when "&"
               if line[i + 1] == "&"
+                if command.strip.empty?
+                  raise ArgumentError, "syntax error near unexpected token `&&`"
+                end
                 commands << {command: command, op: next_op}
                 command = +""
                 next_op = :and
@@ -61,6 +64,10 @@ module Shell
           end
 
           i += 1
+        end
+
+        if next_op == :and && command.strip.empty?
+          raise ArgumentError, "syntax error: expected command after `&&`"
         end
 
         commands << {command: command, op: next_op}

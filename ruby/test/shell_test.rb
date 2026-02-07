@@ -1,5 +1,6 @@
 require "minitest/autorun"
 require "etc"
+require "open3"
 require "timeout"
 $LOAD_PATH.unshift(File.expand_path("..", __dir__))
 require_relative "../shell/job_control"
@@ -128,6 +129,34 @@ class ShellTest < Minitest::Test
 
   def test_does_not_expand_escaped_command_substitution_backticks_in_double_quotes
     assert_equal "`echo hi`", %x(#{A1_PATH} -c 'echo "\\`echo hi\\`"').chomp
+  end
+
+  def test_reports_parse_errors_without_ruby_backtrace
+    _stdout, stderr, status = Open3.capture3(A1_PATH, "-c", "echo \"unterminated")
+    refute status.success?
+    refute_match(/\.rb:\d+:in /, stderr)
+  end
+
+  def test_export_without_args_does_not_raise_nomethoderror
+    _stdout, stderr, status = Open3.capture3(A1_PATH, "-c", "export")
+    refute status.success?
+    refute_match(/NoMethodError|undefined method/, stderr)
+  end
+
+  def test_bg_without_command_reports_usage_error
+    _stdout, stderr, status = Open3.capture3(A1_PATH, "-c", "bg")
+    refute status.success?
+    assert_match(/Usage: bg <command>/, stderr)
+  end
+
+  def test_rejects_empty_command_around_and_operator
+    _stdout1, stderr1, status1 = Open3.capture3(A1_PATH, "-c", "&& echo hi")
+    refute status1.success?
+    assert_match(/syntax/i, stderr1)
+
+    _stdout2, stderr2, status2 = Open3.capture3(A1_PATH, "-c", "echo hi &&")
+    refute status2.success?
+    assert_match(/syntax/i, stderr2)
   end
 
   #################################
