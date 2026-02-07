@@ -26,8 +26,8 @@
 
 int builtin_bg(int argc, char **argv) {
     if (argc < 2) {
-        fprintf(stderr, "bg: usage 'bg <command>'\n");
-        fprintf(stderr, "    runs <command> in the background\n");
+        fprintf(stderr, "Usage: bg <command>\n");
+        fprintf(stderr, "Runs <command> in the background\n");
         return -1;
     }
 

@@ -10,6 +10,7 @@ class ShellTest < Minitest::Test
   TRIVIAL_SHELL_SCRIPT = "#!/bin/sh\ntrue".freeze
 
   A1_PATH = ENV.fetch("A1_PATH", "./a1").freeze
+  COMPAT_PROFILE = ENV["A1_TEST_PROFILE"] == "compat"
 
   def setup
     FileUtils.mkdir_p("test_bin")
@@ -21,6 +22,12 @@ class ShellTest < Minitest::Test
 
   def unique_shell_script(code)
     "#!/bin/sh\necho '#{code}'"
+  end
+
+  def requires_extended_shell!(feature)
+    return unless COMPAT_PROFILE
+
+    skip "requires extended shell feature: #{feature}"
   end
 
   def test_expands_environment_variables
@@ -82,6 +89,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_expands_brace_expansion
+    requires_extended_shell!("brace expansion")
     assert_equal "a b", `#{A1_PATH} -c 'echo {a,b}'`.chomp
   end
 
@@ -94,6 +102,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_keeps_control_operators_inside_command_substitution
+    requires_extended_shell!("nested command parsing in substitutions")
     semicolon_stdout, semicolon_stderr, semicolon_status = Open3.capture3(A1_PATH, "-c", "echo $(echo hi; echo bye)")
     assert semicolon_status.success?, semicolon_stderr
     assert_equal "hi bye\n", semicolon_stdout
@@ -104,6 +113,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_expands_command_substitution_with_escaped_quote
+    requires_extended_shell!("escaped quote handling in substitutions")
     assert_equal "a\"b", `#{A1_PATH} -c 'echo $(printf \"%s\" \"a\\\"b\")'`.chomp
   end
 
@@ -112,6 +122,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_expands_arithmetic_with_variables
+    requires_extended_shell!("arithmetic variable lookup")
     assert_equal "3", `A1_NUM=2 #{A1_PATH} -c 'echo $((A1_NUM + 1))'`.chomp
   end
 
@@ -122,18 +133,22 @@ class ShellTest < Minitest::Test
   end
 
   def test_expands_parameter_default_value
+    requires_extended_shell!("${var:-fallback}")
     assert_equal "fallback", `#{A1_PATH} -c 'echo ${A1_UNSET_VAR:-fallback}'`.chomp
   end
 
   def test_expands_parameter_default_value_with_variable_reference
+    requires_extended_shell!("${var:-$OTHER}")
     assert_equal Dir.home, `#{A1_PATH} -c 'echo ${A1_UNSET_VAR:-$HOME}'`.chomp
   end
 
   def test_expands_parameter_default_value_with_command_substitution
+    requires_extended_shell!("${var:-$(...)}")
     assert_equal "hi", `#{A1_PATH} -c 'echo ${A1_UNSET_VAR:-$(echo hi)}'`.chomp
   end
 
   def test_expands_glob_from_parameter_default_value
+    requires_extended_shell!("glob expansion from parameter defaults")
     File.write("default_glob_a.txt", TRIVIAL_SHELL_SCRIPT)
     File.write("default_glob_b.txt", TRIVIAL_SHELL_SCRIPT)
     output = `#{A1_PATH} -c 'printf "%s\n" ${A1_UNSET_GLOB_VAR:-default_glob_*.txt}'`.lines.map(&:chomp).sort
@@ -144,6 +159,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_reports_command_substitution_failure_with_status
+    requires_extended_shell!("command substitution error propagation")
     _stdout, stderr, status = Open3.capture3(A1_PATH, "-c", "echo $(exit 7)")
     refute status.success?
     assert_match(/command substitution failed/, stderr)
@@ -152,6 +168,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_expands_nested_defaults_with_substitution_and_arithmetic
+    requires_extended_shell!("nested defaults and arithmetic")
     command = 'echo ${A1_OUTER_UNSET:-${A1_MIDDLE_UNSET:-${A1_INNER_UNSET:-$(printf "%s" "calc_$((2+3))")}}}'
     assert_equal "calc_5", `#{A1_PATH} -c '#{command}'`.chomp
   end
@@ -185,6 +202,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_combines_expansions_in_defaults_and_subcommands
+    requires_extended_shell!("composed substitutions and defaults")
     File.write("combo_a.txt", TRIVIAL_SHELL_SCRIPT)
     File.write("combo_b.txt", TRIVIAL_SHELL_SCRIPT)
 
@@ -229,6 +247,7 @@ class ShellTest < Minitest::Test
   end
 
   def test_rejects_empty_command_around_and_operator
+    requires_extended_shell!("top-level && parsing")
     _stdout1, stderr1, status1 = Open3.capture3(A1_PATH, "-c", "&& echo hi")
     refute status1.success?
     assert_match(/syntax/i, stderr1)
@@ -303,18 +322,22 @@ class ShellTest < Minitest::Test
   #########################
 
   def test_builtin_cd_no_args
+    requires_extended_shell!("multi-command sequencing with ;")
     assert_equal Dir.home, `#{A1_PATH} -c 'cd; echo $PWD'`.strip
   end
 
   def test_builtin_cd
+    requires_extended_shell!("multi-command sequencing with ;")
     assert_equal File.join(Dir.pwd, "blah"), `#{A1_PATH} -c 'mkdir -p blah; cd blah; echo $PWD; cd ..; rm -rf blah'`.strip
   end
 
   def test_builtin_cd_dash
+    requires_extended_shell!("multi-command sequencing with ;")
     assert_equal Dir.pwd, `#{A1_PATH} -c 'mkdir -p blah; cd blah; cd -; rm -rf blah; echo $PWD'`.strip
   end
 
   def test_builtin_cd_parent
+    requires_extended_shell!("multi-command sequencing with ;")
     assert_equal Dir.pwd, `#{A1_PATH} -c 'mkdir -p blah; cd blah; cd ..; rm -rf blah; echo $PWD'`.strip
   end
 
