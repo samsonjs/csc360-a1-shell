@@ -10,7 +10,7 @@ a1: $(OBJS)
 	$(CC) $(CFLAGS) -o a1 $(OBJS) $(LDFLAGS) -lreadline -lhistory -ltermcap
 
 test: a1
-	cd ../ruby && A1_PATH=../c/a1 bundle exec rake test
+	cd ../ruby && A1_PATH=../c/a1 A1_TEST_PROFILE=compat bundle exec rake test
 
 clean:
 	rm -rf $(OBJS) a1

@@ -10,9 +10,10 @@ module Shell
 
     attr_reader :logger
 
-    def initialize(logger: nil)
+    def initialize(logger: nil, refresh_line: nil)
       @jobs_by_pid = {}
       @logger = logger || Logger.instance
+      @refresh_line = refresh_line || -> { Readline.refresh_line }
     end
 
     def exec_command(cmd, args, background: false)
@@ -67,7 +68,11 @@ module Shell
     def trap_sigchld
       # handler for SIGCHLD when a child's state changes
       Signal.trap("CHLD") do |_signo|
-        pid = Process.waitpid(-1, Process::WNOHANG)
+        pid = begin
+          Process.waitpid(-1, Process::WNOHANG)
+        rescue Errno::ECHILD
+          nil
+        end
         if pid.nil?
           # no-op
         elsif (job = @jobs_by_pid[pid])
@@ -79,7 +84,7 @@ module Shell
         else
           warn "\n#{yellow("[WARN]")} No job found for child with PID #{pid}"
         end
-        Readline.refresh_line
+        @refresh_line.call
       end
     end
 

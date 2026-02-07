@@ -21,7 +21,9 @@ module Shell
       if options[:command]
         logger.verbose "Executing command: #{options[:command]}"
         print_logs
-        exit repl.process_command(options[:command])
+        status = repl.process_command(options[:command])
+        print_logs
+        exit status
       elsif $stdin.isatty
         repl.start(options: options)
       end

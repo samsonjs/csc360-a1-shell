@@ -3,6 +3,8 @@ require "shell/logger"
 
 module Shell
   class Builtins
+    EXPORT_VARIABLE_PATTERN = /\$\w+/
+
     attr_reader :job_control, :logger
 
     def initialize(job_control: nil, logger: nil)
@@ -24,6 +26,11 @@ module Shell
     #################
 
     def builtin_bg(args)
+      if args.empty?
+        logger.warn "Usage: bg <command>"
+        return -1
+      end
+
       cmd = args.shift
       job_control.exec_command(cmd, args, background: true)
     end
@@ -51,17 +58,35 @@ module Shell
     end
 
     def builtin_cd(args)
-      Dir.chdir args.first
+      dir = args.first
+      oldpwd = Dir.pwd
+      target = case dir
+      in nil
+        Dir.home
+      in "-"
+        ENV["OLDPWD"] || oldpwd
+      else
+        dir
+      end
+      Dir.chdir target
+      ENV["OLDPWD"] = oldpwd
+      ENV["PWD"] = Dir.pwd
       0
     end
 
     def builtin_export(args)
+      if args.count != 1 || args.first.nil? || !args.first.include?("=")
+        logger.warn "Usage: export NAME=value"
+        return -1
+      end
+
       # only supports one variable and doesn't support quoting
       name, *value_parts = args.first.strip.split("=")
       if name.nil? || name.empty?
         logger.warn "#{red("[ERROR]")} Invalid export command"
+        return -1
       else
-        ENV[name] = value_parts.join("=").gsub(/\$\w+/) { |m| ENV[m[1..]] || "" }
+        ENV[name] = value_parts.join("=").gsub(EXPORT_VARIABLE_PATTERN) { ENV[it[1..]] || "" }
       end
       0
     end

@@ -8,6 +8,7 @@ require "shell/builtins"
 require "shell/colours"
 require "shell/job_control"
 require "shell/logger"
+require "shell/string_parser"
 require "shell/word_expander"
 
 module Shell
@@ -50,24 +51,38 @@ module Shell
       return 0 if line.strip.empty? # no input, no-op
 
       logger.verbose "Processing command: #{line.inspect}"
-      args = word_expander.expand(line)
-      cmd = args.shift
-      logger.verbose "Parsed command: #{cmd} #{args.inspect}"
-      if builtins.builtin?(cmd)
-        logger.verbose "Executing builtin #{cmd}"
-        builtins.exec(cmd, args)
-      else
-        logger.verbose "Shelling out for #{cmd}"
-        job_control.exec_command(cmd, args)
+      commands = parse_line(line)
+      result = 0
+      commands.each do |entry|
+        case entry
+        in StringParser::Command[text:, op:]
+          command = text
+          next if command.strip.empty?
+          next if op == :and && result != 0
+
+          args = word_expander.expand(command)
+          program = args.shift
+          logger.verbose "Parsed command: #{program} #{args.inspect}"
+          if builtins.builtin?(program)
+            logger.verbose "Executing builtin #{program}"
+            result = builtins.exec(program, args)
+          else
+            logger.verbose "Shelling out for #{program}"
+            result = job_control.exec_command(program, args)
+          end
+        else
+          raise ArgumentError, "Unknown parsed command node: #{entry.inspect}"
+        end
       end
-    rescue Errno => e
+      result
+    rescue => e
       warn "#{red("[ERROR]")} #{e.message}"
       -1
     end
 
     # Looks like this: /path/to/somewhere%
-    def prompt(pwd)
-      "#{blue(pwd)}#{white("%")} #{CLEAR}"
-    end
+    def prompt(pwd) = "#{blue(pwd)}#{white("%")} #{CLEAR}"
+
+    def parse_line(line) = StringParser.split_commands(line)
   end
 end

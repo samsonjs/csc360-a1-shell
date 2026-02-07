@@ -155,6 +155,8 @@ int handle_wordexp_result(int result, char *cmd) {
 
 int process_command(char *line, options_t options) {
     wordexp_t words;
+    int builtin_result = 0;
+    bool builtin_executed = false;
     int result = wordexp(line, &words, WRDE_SHOWERR | WRDE_UNDEF);
     if (handle_wordexp_result(result, line) && words.we_wordc > 0) {
         if (options->verbose) {
@@ -165,18 +167,26 @@ int process_command(char *line, options_t options) {
             fprintf(stderr, "}\n");
         }
         /* try the built-in commands */
-        if (cmd_matches("bg", words.we_wordv[0]))
-            builtin_bg(words.we_wordc, words.we_wordv);
-        else if (cmd_matches("bgkill", words.we_wordv[0]))
-            builtin_bgkill(words.we_wordc, words.we_wordv);
-        else if (cmd_matches("bglist", words.we_wordv[0]))
-            builtin_bglist();
-        else if (cmd_matches("cd", words.we_wordv[0]))
-            builtin_cd(words.we_wordc, words.we_wordv);
-        else if (cmd_matches("clear", words.we_wordv[0]))
+        if (cmd_matches("bg", words.we_wordv[0])) {
+            builtin_result = builtin_bg(words.we_wordc, words.we_wordv);
+            builtin_executed = true;
+        } else if (cmd_matches("bgkill", words.we_wordv[0])) {
+            builtin_result = builtin_bgkill(words.we_wordc, words.we_wordv);
+            builtin_executed = true;
+        } else if (cmd_matches("bglist", words.we_wordv[0])) {
+            builtin_result = builtin_bglist();
+            builtin_executed = true;
+        } else if (cmd_matches("cd", words.we_wordv[0])) {
+            builtin_result = builtin_cd(words.we_wordc, words.we_wordv);
+            builtin_executed = true;
+        } else if (cmd_matches("clear", words.we_wordv[0])) {
             builtin_clear();
-        else if (cmd_matches("pwd", words.we_wordv[0]))
+            builtin_executed = true;
+        } else if (cmd_matches("pwd", words.we_wordv[0])) {
             builtin_pwd();
+            builtin_executed = true;
+            builtin_result = 0;
+        }
         else if (cmd_matches("exit", words.we_wordv[0])) {
             exit(0);
         } else {
@@ -189,6 +199,9 @@ int process_command(char *line, options_t options) {
         }
         add_history(line); /* add to the readline history */
         wordfree(&words);
+        if (builtin_executed && builtin_result < 0) {
+            return builtin_result;
+        }
         return 0;
     } else {
         return -2;
