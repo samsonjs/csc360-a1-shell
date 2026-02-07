@@ -1,4 +1,3 @@
-require "shellwords"
 require "open3"
 require "shell/quote_cursor"
 require "shell/string_parser"
@@ -54,12 +53,12 @@ module Shell
         end
     end
 
-    # Lifted directly from Ruby 4.0.0.
+    # Adapted from Ruby's Shellwords splitting logic.
     #
     # Splits a string into an array of tokens in the same way the UNIX
     # Bourne shell does.
     #
-    #   argv = Shellwords.split('here are "two words"')
+    #   argv = shellsplit('here are "two words"')
     #   argv #=> ["here", "are", "two words"]
     #
     # +line+ must not contain NUL characters because of nature of
@@ -69,7 +68,7 @@ module Shell
     # metacharacters except for the single and double quotes and
     # backslash are not treated as such.
     #
-    #   argv = Shellwords.split('ruby my_prog.rb | less')
+    #   argv = shellsplit('ruby my_prog.rb | less')
     #   argv #=> ["ruby", "my_prog.rb", "|", "less"]
     #
     # String#shellsplit is a shortcut for this function.

@@ -93,6 +93,16 @@ class ShellTest < Minitest::Test
     assert_equal "hi", `#{A1_PATH} -c 'echo $(echo hi)'`.chomp
   end
 
+  def test_keeps_control_operators_inside_command_substitution
+    semicolon_stdout, semicolon_stderr, semicolon_status = Open3.capture3(A1_PATH, "-c", "echo $(echo hi; echo bye)")
+    assert semicolon_status.success?, semicolon_stderr
+    assert_equal "hi bye\n", semicolon_stdout
+
+    and_stdout, and_stderr, and_status = Open3.capture3(A1_PATH, "-c", "echo $(echo hi && echo bye)")
+    assert and_status.success?, and_stderr
+    assert_equal "hi bye\n", and_stdout
+  end
+
   def test_expands_command_substitution_with_escaped_quote
     assert_equal "a\"b", `#{A1_PATH} -c 'echo $(printf \"%s\" \"a\\\"b\")'`.chomp
   end
