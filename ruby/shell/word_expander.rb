@@ -22,7 +22,7 @@ module Shell
     ARITHMETIC_IDENTIFIER_PATTERN = /[A-Za-z0-9_]/
     ARITHMETIC_OPERATOR_PATTERN = %r{[+\-*/()%]}
     BRACE_EXPANSION_PATTERN = /(.*?)\{([^{}]*)\}(.*)/
-    SplitWord = Struct.new(:text, :globbed, keyword_init: true)
+    SplitWord = Data.define(:text, :globbed)
     CommandSubstitutionError = Class.new(StandardError)
 
     # Splits the given line into multiple words, performing the following transformations:

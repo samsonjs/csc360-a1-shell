@@ -1,6 +1,6 @@
 module Shell
   class StringParser
-    Token = Struct.new(:type, :value, keyword_init: true)
+    Token = Data.define(:type, :value)
 
     class Scanner
       def initialize(line, index: 0)
