@@ -1,5 +1,6 @@
 require "shellwords"
 require "open3"
+require "shell/quote_cursor"
 require "shell/string_parser"
 
 module Shell
@@ -116,20 +117,11 @@ module Shell
     def expand_command_substitution(line)
       output = +""
       i = 0
-      state = :unquoted
+      cursor = QuoteCursor.new
       while i < line.length
         c = line[i]
-        case state
-        when :unquoted
+        if cursor.unquoted?
           case c
-          when "'"
-            output << c
-            state = :single_quoted
-            i += 1
-          when "\""
-            output << c
-            state = :double_quoted
-            i += 1
           when "`"
             cmd, i = read_backtick(line, i + 1)
             output << escape_substitution_output(run_command_substitution(cmd), :unquoted)
@@ -156,29 +148,20 @@ module Shell
                 output << ESCAPED_BACKTICK
                 i += 2
               else
-                output << c
-                i += 1
+                segment, i = cursor.consume(line, i)
+                output << segment
               end
             else
-              output << c
-              i += 1
+              segment, i = cursor.consume(line, i)
+              output << segment
             end
           else
-            output << c
-            i += 1
+            segment, i = cursor.consume(line, i)
+            output << segment
           end
 
-        when :single_quoted
-          output << c
-          state = :unquoted if c == "'"
-          i += 1
-
-        when :double_quoted
+        elsif cursor.state == :double_quoted
           case c
-          when "\""
-            output << c
-            state = :unquoted
-            i += 1
           when "\\"
             if i + 1 < line.length
               escaped = line[i + 1]
@@ -190,8 +173,8 @@ module Shell
               end
               i += 2
             else
-              output << c
-              i += 1
+              segment, i = cursor.consume(line, i)
+              output << segment
             end
           when "`"
             cmd, i = read_backtick(line, i + 1)
@@ -206,13 +189,17 @@ module Shell
                 output << escape_substitution_output(run_command_substitution(cmd), :double_quoted)
               end
             else
-              output << c
-              i += 1
+              segment, i = cursor.consume(line, i)
+              output << segment
             end
           else
-            output << c
-            i += 1
+            segment, i = cursor.consume(line, i)
+            output << segment
           end
+
+        else
+          segment, i = cursor.consume(line, i)
+          output << segment
         end
       end
       output
