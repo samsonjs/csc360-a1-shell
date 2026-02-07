@@ -60,9 +60,10 @@ module Shell
     def builtin_cd(args)
       dir = args.first
       oldpwd = Dir.pwd
-      target = if dir.nil?
+      target = case dir
+      in nil
         Dir.home
-      elsif dir == "-"
+      in "-"
         ENV["OLDPWD"] || oldpwd
       else
         dir
@@ -85,7 +86,7 @@ module Shell
         logger.warn "#{red("[ERROR]")} Invalid export command"
         return -1
       else
-        ENV[name] = value_parts.join("=").gsub(EXPORT_VARIABLE_PATTERN) { |m| ENV[m[1..]] || "" }
+        ENV[name] = value_parts.join("=").gsub(EXPORT_VARIABLE_PATTERN) { ENV[it[1..]] || "" }
       end
       0
     end

@@ -39,7 +39,7 @@ module Shell
           expanded = expand_variables(word.text)
             .tr(ESCAPED_DOLLAR, "$")
             .tr(ESCAPED_BACKTICK, "`")
-          expand_braces(expanded).map { |part| SplitWord.new(text: part, globbed: word.globbed) }
+          expand_braces(expanded).map { SplitWord.new(text: it, globbed: word.globbed) }
         end
         .flat_map do |word|
           if word.globbed
@@ -116,7 +116,7 @@ module Shell
             if glob_words.empty?
               words << SplitWord.new(text: field, globbed: false)
             else
-              glob_words.each { |glob_word| words << SplitWord.new(text: glob_word, globbed: true) }
+              glob_words.each { words << SplitWord.new(text: it, globbed: true) }
             end
           else
             words << SplitWord.new(text: field, globbed: false)
@@ -535,7 +535,7 @@ module Shell
       return [word] unless body.include?(",")
 
       parts = body.split(",", -1)
-      parts.flat_map { |part| expand_braces(prefix + part + suffix) }
+      parts.flat_map { expand_braces(prefix + it + suffix) }
     end
 
     def escaped_replacement(char)

@@ -54,19 +54,24 @@ module Shell
       commands = parse_line(line)
       result = 0
       commands.each do |entry|
-        command = entry[:command]
-        next if command.strip.empty?
-        next if entry[:op] == :and && result != 0
+        case entry
+        in StringParser::Command[text:, op:]
+          command = text
+          next if command.strip.empty?
+          next if op == :and && result != 0
 
-        args = word_expander.expand(command)
-        program = args.shift
-        logger.verbose "Parsed command: #{program} #{args.inspect}"
-        if builtins.builtin?(program)
-          logger.verbose "Executing builtin #{program}"
-          result = builtins.exec(program, args)
+          args = word_expander.expand(command)
+          program = args.shift
+          logger.verbose "Parsed command: #{program} #{args.inspect}"
+          if builtins.builtin?(program)
+            logger.verbose "Executing builtin #{program}"
+            result = builtins.exec(program, args)
+          else
+            logger.verbose "Shelling out for #{program}"
+            result = job_control.exec_command(program, args)
+          end
         else
-          logger.verbose "Shelling out for #{program}"
-          result = job_control.exec_command(program, args)
+          raise ArgumentError, "Unknown parsed command node: #{entry.inspect}"
         end
       end
       result
@@ -76,12 +81,8 @@ module Shell
     end
 
     # Looks like this: /path/to/somewhere%
-    def prompt(pwd)
-      "#{blue(pwd)}#{white("%")} #{CLEAR}"
-    end
+    def prompt(pwd) = "#{blue(pwd)}#{white("%")} #{CLEAR}"
 
-    def parse_line(line)
-      StringParser.split_commands(line)
-    end
+    def parse_line(line) = StringParser.split_commands(line)
   end
 end

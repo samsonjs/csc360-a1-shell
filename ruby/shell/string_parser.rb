@@ -1,5 +1,6 @@
 module Shell
   class StringParser
+    Command = Data.define(:text, :op)
     Token = Data.define(:type, :value)
 
     class Scanner
@@ -336,22 +337,20 @@ module Shell
         tokens = Scanner.new(line).tokenize_command_list
 
         tokens.each do |token|
-          case token.type
-          when :text
-            commands << {command: token.value, op: next_op}
-            if next_op == :and && token.value.strip.empty?
+          case token
+          in Token[type: :text, value:]
+            if next_op == :and && value.strip.empty?
               raise ArgumentError, "syntax error: expected command after `&&`"
             end
+            commands << Command.new(text: value, op: next_op)
             next_op = :always
-          when :separator
-            if token.value == :and
-              if commands.empty? || commands.last[:command].strip.empty?
-                raise ArgumentError, "syntax error near unexpected token `&&`"
-              end
-              next_op = :and
-            else
-              next_op = :always
+          in Token[type: :separator, value: :and]
+            if commands.empty? || commands.last.text.strip.empty?
+              raise ArgumentError, "syntax error near unexpected token `&&`"
             end
+            next_op = :and
+          in Token[type: :separator, value: :always]
+            next_op = :always
           else
             raise ArgumentError, "Unknown token type: #{token.type}"
           end
@@ -360,9 +359,7 @@ module Shell
         commands
       end
 
-      def read_dollar_paren(line, start_index)
-        Scanner.new(line, index: start_index).read_dollar_paren_body
-      end
+      def read_dollar_paren(line, start_index) = Scanner.new(line, index: start_index).read_dollar_paren_body
     end
   end
 end
