@@ -123,6 +123,49 @@ class ShellTest < Minitest::Test
     assert_equal "hi", `#{A1_PATH} -c 'echo ${A1_UNSET_VAR:-$(echo hi)}'`.chomp
   end
 
+  def test_expands_glob_from_parameter_default_value
+    File.write("default_glob_a.txt", TRIVIAL_SHELL_SCRIPT)
+    File.write("default_glob_b.txt", TRIVIAL_SHELL_SCRIPT)
+    output = `#{A1_PATH} -c 'printf "%s\n" ${A1_UNSET_GLOB_VAR:-default_glob_*.txt}'`.lines.map(&:chomp).sort
+    assert_equal ["default_glob_a.txt", "default_glob_b.txt"], output
+  ensure
+    FileUtils.rm_f("default_glob_a.txt")
+    FileUtils.rm_f("default_glob_b.txt")
+  end
+
+  def test_reports_command_substitution_failure_with_status
+    _stdout, stderr, status = Open3.capture3(A1_PATH, "-c", "echo $(exit 7)")
+    refute status.success?
+    assert_match(/command substitution failed/, stderr)
+    assert_match(/exit 7/, stderr)
+    refute_match(/No such file or directory/, stderr)
+  end
+
+  def test_expands_nested_defaults_with_substitution_and_arithmetic
+    command = 'echo ${A1_OUTER_UNSET:-${A1_MIDDLE_UNSET:-${A1_INNER_UNSET:-$(printf "%s" "calc_$((2+3))")}}}'
+    assert_equal "calc_5", `#{A1_PATH} -c '#{command}'`.chomp
+  end
+
+  def test_matches_sh_backslash_parity_before_dollar_and_backticks
+    [1, 2, 3, 4].each do |count|
+      command = "printf \"%s\\n\" #{"\\" * count}$HOME"
+      shell_stdout, _shell_stderr, shell_status = Open3.capture3(A1_PATH, "-c", command)
+      sh_stdout, _sh_stderr, sh_status = Open3.capture3("/bin/sh", "-c", command)
+
+      assert_equal sh_status.success?, shell_status.success?, "status mismatch for #{command.inspect}"
+      assert_equal sh_stdout, shell_stdout, "stdout mismatch for #{command.inspect}"
+    end
+
+    [1, 2, 3, 4].each do |count|
+      command = "printf \"%s\\n\" #{"\\" * count}`echo hi`"
+      shell_stdout, _shell_stderr, shell_status = Open3.capture3(A1_PATH, "-c", command)
+      sh_stdout, _sh_stderr, sh_status = Open3.capture3("/bin/sh", "-c", command)
+
+      assert_equal sh_status.success?, shell_status.success?, "status mismatch for #{command.inspect}"
+      assert_equal sh_stdout, shell_stdout, "stdout mismatch for #{command.inspect}"
+    end
+  end
+
   def test_does_not_expand_escaped_command_substitution_dollar_paren_in_double_quotes
     assert_equal "$(echo hi)", `#{A1_PATH} -c 'echo "\\$(echo hi)"'`.chomp
   end

@@ -3,6 +3,8 @@ require "shell/logger"
 
 module Shell
   class Builtins
+    EXPORT_VARIABLE_PATTERN = /\$\w+/
+
     attr_reader :job_control, :logger
 
     def initialize(job_control: nil, logger: nil)
@@ -83,7 +85,7 @@ module Shell
         logger.warn "#{red("[ERROR]")} Invalid export command"
         return -1
       else
-        ENV[name] = value_parts.join("=").gsub(/\$\w+/) { |m| ENV[m[1..]] || "" }
+        ENV[name] = value_parts.join("=").gsub(EXPORT_VARIABLE_PATTERN) { |m| ENV[m[1..]] || "" }
       end
       0
     end

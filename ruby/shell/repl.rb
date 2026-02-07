@@ -70,7 +70,7 @@ module Shell
         end
       end
       result
-    rescue StandardError => e
+    rescue => e
       warn "#{red("[ERROR]")} #{e.message}"
       -1
     end

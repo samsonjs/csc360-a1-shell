@@ -5,10 +5,26 @@ require "shell/string_parser"
 
 module Shell
   class WordExpander
-    ENV_VAR_REGEX = /\$(?:\{([^}]+)\}|(\w+)\b)/
-    DEFAULT_VAR_REGEX = /\A(\w+):-([\s\S]*)\z/
     ESCAPED_DOLLAR = "\u0001"
     ESCAPED_BACKTICK = "\u0002"
+    GLOB_PATTERN = /[*?\[]/
+    SHELLSPLIT_PATTERN = /\G\s*(?>([^\0\s\\'"]+)|'([^\0']*)'|"((?:[^\0"\\]|\\[^\0])*)"|(\\[^\0]?)|(\S))(\s|\z)?/m
+    DOUBLE_QUOTE_ESCAPES_PATTERN = /\\([$`"\\\n])/
+    SINGLE_ESCAPE_PATTERN = /\\(.)/
+    TILDE_PREFIX_PATTERN = /^~([^\/]*)/
+    VARIABLE_FIRST_CHAR_PATTERN = /[A-Za-z_]/
+    VARIABLE_CHAR_PATTERN = /[A-Za-z0-9_]/
+    TRAILING_NEWLINES_PATTERN = /\n+\z/
+    ESCAPE_DOUBLE_QUOTED_SUBSTITUTION_PATTERN = /([\\"])/
+    ESCAPE_UNQUOTED_SUBSTITUTION_PATTERN = /(\\|["'])/
+    WHITESPACE_PATTERN = /\s/
+    DIGIT_PATTERN = /\d/
+    ARITHMETIC_IDENTIFIER_FIRST_PATTERN = /[A-Za-z_]/
+    ARITHMETIC_IDENTIFIER_PATTERN = /[A-Za-z0-9_]/
+    ARITHMETIC_OPERATOR_PATTERN = %r{[+\-*/()%]}
+    BRACE_EXPANSION_PATTERN = /(.*?)\{([^{}]*)\}(.*)/
+    SplitWord = Struct.new(:text, :globbed, keyword_init: true)
+    CommandSubstitutionError = Class.new(StandardError)
 
     # Splits the given line into multiple words, performing the following transformations:
     #
@@ -19,12 +35,22 @@ module Shell
     def expand(line)
       protected_line = protect_escaped_dollars(line)
       substituted_line = expand_command_substitution(protected_line)
-      shellsplit(substituted_line)
+      shellsplit_tokens(substituted_line)
         .flat_map do |word|
-          expanded = expand_variables(word)
+          expanded = expand_variables(word.text)
             .tr(ESCAPED_DOLLAR, "$")
             .tr(ESCAPED_BACKTICK, "`")
-          expand_braces(expanded)
+          expand_braces(expanded).map { |part| SplitWord.new(text: part, globbed: word.globbed) }
+        end
+        .flat_map do |word|
+          if word.globbed
+            [word.text]
+          elsif GLOB_PATTERN.match?(word.text)
+            glob_words = expand_globs(word.text)
+            glob_words.empty? ? [word.text] : glob_words
+          else
+            [word.text]
+          end
         end
     end
 
@@ -51,11 +77,15 @@ module Shell
     #   argv = 'here are "two words"'.shellsplit
     #   argv #=> ["here", "are", "two words"]
     def shellsplit(line)
+      shellsplit_tokens(line).map(&:text)
+    end
+
+    def shellsplit_tokens(line)
       words = []
       field = "".dup
       at_word_start = true
       found_glob_char = false
-      line.scan(/\G\s*(?>([^\0\s\\'"]+)|'([^\0']*)'|"((?:[^\0"\\]|\\[^\0])*)"|(\\[^\0]?)|(\S))(\s|\z)?/m) do |word, sq, dq, esc, garbage, sep|
+      line.scan(SHELLSPLIT_PATTERN) do |word, sq, dq, esc, garbage, sep|
         if garbage
           b = $~.begin(0)
           line = $~[0]
@@ -69,11 +99,11 @@ module Shell
         #   characters when considered special:
         #
         #   $ ` " \ <newline>
-        field << (word || sq || (dq && dq.gsub(/\\([$`"\\\n])/, '\\1')) || esc.gsub(/\\(.)/, '\\1'))
-        found_glob_char = word && word =~ /[*?\[]/ # must be unquoted
+        field << (word || sq || (dq && dq.gsub(DOUBLE_QUOTE_ESCAPES_PATTERN, '\\1')) || esc.gsub(SINGLE_ESCAPE_PATTERN, '\\1'))
+        found_glob_char = word&.match?(GLOB_PATTERN) # must be unquoted
         # Expand tildes at the beginning of unquoted words.
         if word && at_word_start
-          field.sub!(/^~([^\/]*)/) do
+          field.sub!(TILDE_PREFIX_PATTERN) do
             user = Regexp.last_match(1)
             user.empty? ? Dir.home : Dir.home(user)
           rescue ArgumentError
@@ -84,9 +114,13 @@ module Shell
         if sep
           if found_glob_char
             glob_words = expand_globs(field)
-            words += (glob_words.empty? ? [field] : glob_words)
+            if glob_words.empty?
+              words << SplitWord.new(text: field, globbed: false)
+            else
+              glob_words.each { |glob_word| words << SplitWord.new(text: glob_word, globbed: true) }
+            end
           else
-            words << field
+            words << SplitWord.new(text: field, globbed: false)
           end
           field = "".dup
           at_word_start = true
@@ -101,17 +135,79 @@ module Shell
     end
 
     def expand_variables(value)
-      value.gsub(ENV_VAR_REGEX) do
-        raw = Regexp.last_match(2) || Regexp.last_match(1)
-        if (m = DEFAULT_VAR_REGEX.match(raw))
-          name = m[1]
-          fallback = m[2]
-          env_value = ENV[name]
-          (env_value.nil? || env_value.empty?) ? expand_variables(fallback) : env_value
+      output = +""
+      i = 0
+      while i < value.length
+        if value[i] != "$"
+          output << value[i]
+          i += 1
+          next
+        end
+
+        if value[i + 1] == "{"
+          raw, i = read_braced_variable(value, i + 2)
+          output << resolve_braced_variable(raw)
+        elsif variable_char?(value[i + 1], first: true)
+          j = i + 2
+          j += 1 while j < value.length && variable_char?(value[j], first: false)
+          output << ENV.fetch(value[(i + 1)...j])
+          i = j
         else
-          ENV.fetch(raw)
+          output << "$"
+          i += 1
         end
       end
+      output
+    end
+
+    def read_braced_variable(value, start_index)
+      output = +""
+      depth = 1
+      i = start_index
+      while i < value.length
+        c = value[i]
+        if c == "{"
+          depth += 1
+        elsif c == "}"
+          depth -= 1
+          return [output, i + 1] if depth.zero?
+        end
+        output << c
+        i += 1
+      end
+      raise ArgumentError, "Unmatched ${...}"
+    end
+
+    def resolve_braced_variable(raw)
+      name, fallback = split_default_expression(raw)
+      if fallback
+        env_value = ENV[name]
+        (env_value.nil? || env_value.empty?) ? expand_variables(fallback) : env_value
+      else
+        ENV.fetch(name)
+      end
+    end
+
+    def split_default_expression(raw)
+      depth = 0
+      i = 0
+      while i < raw.length - 1
+        c = raw[i]
+        if c == "{"
+          depth += 1
+        elsif c == "}"
+          depth -= 1 if depth > 0
+        elsif depth.zero? && c == ":" && raw[i + 1] == "-"
+          return [raw[0...i], raw[(i + 2)..]]
+        end
+        i += 1
+      end
+      [raw, nil]
+    end
+
+    def variable_char?(char, first:)
+      return false if char.nil?
+      first ? VARIABLE_FIRST_CHAR_PATTERN.match?(char) : VARIABLE_CHAR_PATTERN.match?(char)
     end
 
     def expand_command_substitution(line)
@@ -260,9 +356,15 @@ module Shell
     end
 
     def run_command_substitution(command)
-      stdout, status = Open3.capture2("/bin/sh", "-c", command)
-      raise Errno::ENOENT, command unless status.success?
-      stdout = stdout.sub(/\n+\z/, "")
+      stdout, stderr, status = Open3.capture3("/bin/sh", "-c", command)
+      unless status.success?
+        reason = status.exitstatus ? "exit #{status.exitstatus}" : "signal #{status.termsig}"
+        details = stderr.to_s.strip
+        message = "command substitution failed (#{reason}): #{command}"
+        message = "#{message}: #{details}" unless details.empty?
+        raise CommandSubstitutionError, message
+      end
+      stdout = stdout.sub(TRAILING_NEWLINES_PATTERN, "")
       stdout.tr("\n", " ")
     end
 
@@ -270,9 +372,9 @@ module Shell
       escaped = value.gsub("$", ESCAPED_DOLLAR)
       case context
       when :double_quoted
-        escaped.gsub(/([\\"])/, '\\\\\1')
+        escaped.gsub(ESCAPE_DOUBLE_QUOTED_SUBSTITUTION_PATTERN, '\\\\\1')
       when :unquoted
-        escaped.gsub(/(\\|["'])/, '\\\\\1')
+        escaped.gsub(ESCAPE_UNQUOTED_SUBSTITUTION_PATTERN, '\\\\\1')
       else
         escaped
       end
@@ -289,20 +391,20 @@ module Shell
       i = 0
       while i < expr.length
         c = expr[i]
-        if c.match?(/\s/)
+        if c.match?(WHITESPACE_PATTERN)
           i += 1
           next
         end
-        if c.match?(/\d/)
+        if c.match?(DIGIT_PATTERN)
           j = i + 1
-          j += 1 while j < expr.length && expr[j].match?(/\d/)
+          j += 1 while j < expr.length && expr[j].match?(DIGIT_PATTERN)
           tokens << [:number, expr[i...j].to_i]
           i = j
           next
         end
-        if c.match?(/[A-Za-z_]/)
+        if c.match?(ARITHMETIC_IDENTIFIER_FIRST_PATTERN)
           j = i + 1
-          j += 1 while j < expr.length && expr[j].match?(/[A-Za-z0-9_]/)
+          j += 1 while j < expr.length && expr[j].match?(ARITHMETIC_IDENTIFIER_PATTERN)
           name = expr[i...j]
           value = ENV[name]
           value = (value.nil? || value.empty?) ? 0 : value.to_i
@@ -310,7 +412,7 @@ module Shell
           i = j
           next
         end
-        if c.match?(%r{[+\-*/()%]})
+        if c.match?(ARITHMETIC_OPERATOR_PATTERN)
           tokens << [:op, c]
           i += 1
           next
@@ -425,7 +527,7 @@ module Shell
 
     def expand_braces(word)
       # Simple, non-nested brace expansion: pre{a,b}post -> preapost, prebpost
-      match = word.match(/(.*?)\{([^{}]*)\}(.*)/)
+      match = word.match(BRACE_EXPANSION_PATTERN)
       return [word] unless match
 
       prefix = match[1]
