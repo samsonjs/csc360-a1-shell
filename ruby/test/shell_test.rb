@@ -131,6 +131,32 @@ class ShellTest < Minitest::Test
     assert_equal "`echo hi`", %x(#{A1_PATH} -c 'echo "\\`echo hi\\`"').chomp
   end
 
+  def test_combines_expansions_in_defaults_and_subcommands
+    File.write("combo_a.txt", TRIVIAL_SHELL_SCRIPT)
+    File.write("combo_b.txt", TRIVIAL_SHELL_SCRIPT)
+
+    command = [
+      "printf \"<%s>\\n\"",
+      "${A1_UNSET_COMPLEX_TEST_VAR:-$(printf \"%s\" \"default_$((1+2))\")}",
+      "$(printf \"%s\" \"combo_*.txt\")",
+      "\"$(printf \"%s\" \"quoted value\")\"",
+      "{left,right}",
+      "~"
+    ].join(" ")
+    output = `#{A1_PATH} -c '#{command}'`.lines.map(&:chomp)
+
+    assert_equal "<default_3>", output[0]
+    assert_equal ["<combo_a.txt>", "<combo_b.txt>"], output[1, 2].sort
+    assert_equal "<quoted value>", output[3]
+    assert_equal "<left>", output[4]
+    assert_equal "<right>", output[5]
+    assert_equal "<#{Dir.home}>", output[6]
+    assert_equal 7, output.length
+  ensure
+    FileUtils.rm_f("combo_a.txt")
+    FileUtils.rm_f("combo_b.txt")
+  end
+
   def test_reports_parse_errors_without_ruby_backtrace
     _stdout, stderr, status = Open3.capture3(A1_PATH, "-c", "echo \"unterminated")
     refute status.success?
