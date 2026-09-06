@@ -2,10 +2,10 @@
 # on mudge's Forgejo runner in a Linux container. `make` at the top level is
 # the whole check so CI runs exactly what a local `make` does.
 #
-# No `uses:` steps on purpose. Actions get fetched from data.forgejo.org at
-# job start, which has already broken once, and actions/checkout needs Node
-# inside the container anyway. A shallow fetch with the job token is all
-# the checkout needs, and the full ruby image has git for it.
+# The checkout is sjs/actions/checkout, referenced by full URL so the runner
+# fetches it from git.samhuri.net rather than data.forgejo.org, which has
+# broken once. It's plain git with the job token, so the official ruby image
+# works without Node, unlike actions/checkout.
 #
 # The image is pinned to the Ruby in ruby/.ruby-version by hand. The full
 # image is built on buildpack-deps, so gcc and the readline headers are
@@ -41,19 +41,13 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Check out
-        run: |
-          echo "event=$GITHUB_EVENT_NAME ref=$GITHUB_REF sha=$GITHUB_SHA"
-          git init -q .
-          git fetch -q --depth 1 "${GITHUB_SERVER_URL/https:\/\//https://x-access-token:${GITHUB_TOKEN}@}/${GITHUB_REPOSITORY}.git" "${GITHUB_REF:-$GITHUB_SHA}"
-          git checkout -q FETCH_HEAD
-          git --no-pager log -1 --oneline
-          test -f Makefile || { echo "checkout is empty"; exit 1; }
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
+        uses: https://git.samhuri.net/sjs/actions/checkout@v1
+        with:
+          require-file: Makefile
       - name: Install readline
-        run: |
-          apt-get update -q
-          apt-get install -y -q --no-install-recommends libreadline-dev
+        uses: https://git.samhuri.net/sjs/actions/apt-install@v1
+        with:
+          packages: libreadline-dev
       - name: Install gems
         run: bundle install --jobs 4 --retry 3
         working-directory: ruby
