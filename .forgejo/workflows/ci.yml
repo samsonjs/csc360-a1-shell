@@ -37,7 +37,7 @@ jobs:
     # what actually runs.
     runs-on: docker
     container:
-      image: docker.io/library/ruby:4.0.5
+      image: git.samhuri.net/sjs/ruby:4.0.5
     timeout-minutes: 10
     steps:
       - name: Check out
