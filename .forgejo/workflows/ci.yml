@@ -7,7 +7,7 @@
 # broken once. It's plain git with the job token, so the official ruby image
 # works without Node, unlike actions/checkout.
 #
-# The image is pinned to the Ruby in ruby/.ruby-version by hand. The full
+# The image follows the Ruby series in ruby/.ruby-version. The full
 # image is built on buildpack-deps, so gcc and the readline headers are
 # already there; the apt step is a cheap guarantee in case that changes.
 # `make bootstrap` isn't used because it reaches for sudo, which the
@@ -37,7 +37,7 @@ jobs:
     # what actually runs.
     runs-on: docker
     container:
-      image: docker.io/library/ruby:4.0.5
+      image: docker.io/library/ruby:4.0
     timeout-minutes: 10
     steps:
       - name: Check out
